@@ -17,6 +17,10 @@ export default definePlugin({
     context.events.on("playerJoin", ({ playerName }) => {
       context.logger.info(`Player joined: ${playerName}`);
     });
+
+    context.events.on("serverLoad", () => {
+      context.logger.info("Server load event observed.");
+    });
   },
   onDisable(context) {
     context.logger.info("Hello TS disabled.");

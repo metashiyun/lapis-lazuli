@@ -9,7 +9,7 @@
   "scripts": {
     "test": "bun test",
     "validate:example": "bun packages/cli/src/index.ts validate examples/hello-ts",
-    "bundle:example": "bun packages/cli/src/index.ts bundle examples/hello-ts"
+    "bundle:example": "bun packages/cli/src/index.ts bundle examples/hello-ts",
+    "test:paper-smoke": "bash scripts/paper-smoke.sh"
   }
 }
-
