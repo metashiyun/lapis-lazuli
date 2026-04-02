@@ -1,0 +1,33 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "lapis-lazuli",
+    },
+    "examples/hello-ts": {
+      "name": "hello-ts",
+      "dependencies": {
+        "@lapis-lazuli/sdk": "workspace:*",
+      },
+    },
+    "packages/cli": {
+      "name": "@lapis-lazuli/cli",
+      "version": "0.1.0",
+      "bin": {
+        "lapis": "./src/index.ts",
+      },
+    },
+    "packages/sdk": {
+      "name": "@lapis-lazuli/sdk",
+      "version": "0.1.0",
+    },
+  },
+  "packages": {
+    "@lapis-lazuli/cli": ["@lapis-lazuli/cli@workspace:packages/cli"],
+
+    "@lapis-lazuli/sdk": ["@lapis-lazuli/sdk@workspace:packages/sdk"],
+
+    "hello-ts": ["hello-ts@workspace:examples/hello-ts"],
+  }
+}

@@ -1,0 +1,12 @@
+.DS_Store
+.gradle/
+.idea/
+.lapis/
+.vscode/
+build/
+dist/
+node_modules/
+out/
+*.class
+*.log
+

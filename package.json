@@ -1,0 +1,15 @@
+{
+  "name": "lapis-lazuli",
+  "private": true,
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "validate:example": "bun packages/cli/src/index.ts validate examples/hello-ts",
+    "bundle:example": "bun packages/cli/src/index.ts bundle examples/hello-ts"
+  }
+}
+
