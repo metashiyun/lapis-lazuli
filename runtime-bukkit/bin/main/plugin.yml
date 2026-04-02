@@ -1,7 +1,0 @@
-name: LapisLazuli
-main: dev.lapislazuli.runtime.bukkit.LapisLazuliPlugin
-version: ${version}
-api-version: "1.21"
-author: OpenAI
-description: Runtime plugin for loading TypeScript and JavaScript bundles built with Lapis Lazuli.
-
