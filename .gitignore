@@ -3,10 +3,10 @@
 .idea/
 .lapis/
 .vscode/
+**/bin/
 build/
 dist/
 node_modules/
 out/
 *.class
 *.log
-

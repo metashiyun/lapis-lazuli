@@ -32,7 +32,10 @@ class ExampleBundleIntegrationTest {
 
         plugin.enable()
 
-        assertEquals(listOf("Hello TS enabled."), hostServices.logMessages)
+        assertEquals(
+            listOf("Hello TS enabled.", "Server load event observed."),
+            hostServices.logMessages,
+        )
 
         val commandResult = hostServices.commandCallback.invoke(
             mapOf(
@@ -53,9 +56,9 @@ class ExampleBundleIntegrationTest {
         assertEquals(null, commandResult)
         assertEquals(listOf("Hello from TypeScript."), hostServices.sentMessages)
 
-        hostServices.eventCallback.invoke(mapOf("playerName" to "Bob"))
+        hostServices.eventCallbacks.getValue("playerJoin").invoke(mapOf("playerName" to "Bob"))
         assertEquals(
-            listOf("Hello TS enabled.", "Player joined: Bob"),
+            listOf("Hello TS enabled.", "Server load event observed.", "Player joined: Bob"),
             hostServices.logMessages,
         )
 
@@ -87,7 +90,7 @@ class ExampleBundleIntegrationTest {
         val logMessages = mutableListOf<String>()
         val sentMessages = mutableListOf<String>()
         lateinit var commandCallback: Callback
-        lateinit var eventCallback: Callback
+        val eventCallbacks = linkedMapOf<String, Callback>()
 
         init {
             Files.createDirectories(dataRoot)
@@ -120,7 +123,10 @@ class ExampleBundleIntegrationTest {
         }
 
         override fun registerEvent(eventKey: String, handler: Callback): Registration {
-            eventCallback = handler
+            eventCallbacks[eventKey] = handler
+            if (eventKey == "serverLoad") {
+                handler.invoke(mapOf("reload" to false))
+            }
             return Registration {}
         }
 
