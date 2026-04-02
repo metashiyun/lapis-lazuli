@@ -18,9 +18,12 @@ Plugin authors write TypeScript or JavaScript only. The project ships:
 ## Local Commands
 
 ```sh
+bun install
 bun test
+bun packages/cli/src/index.ts create /path/to/my-plugin "My Plugin"
 bun packages/cli/src/index.ts validate examples/hello-ts
 bun packages/cli/src/index.ts bundle examples/hello-ts
+PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ./gradlew :runtime-core:test :runtime-bukkit:shadowJar
 ```
 
@@ -49,3 +52,69 @@ Example manifest:
 ```
 
 The CLI rewrites `main` to `main.js` in the packaged bundle.
+
+## Develop And Install A Plugin
+
+The current workflow is source-first from this repository:
+
+1. Create a new TypeScript plugin project:
+
+```sh
+bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
+```
+
+2. Edit `/absolute/path/to/my-plugin/src/index.ts` and `/absolute/path/to/my-plugin/lapis-plugin.json`.
+
+3. Validate and bundle the plugin:
+
+```sh
+bun packages/cli/src/index.ts validate /absolute/path/to/my-plugin
+bun packages/cli/src/index.ts bundle /absolute/path/to/my-plugin
+```
+
+4. Install the runtime plugin on the Paper server:
+
+```sh
+./gradlew :runtime-bukkit:shadowJar
+```
+
+Then copy:
+
+- `runtime-bukkit/build/libs/runtime-bukkit.jar` into `<server>/plugins/`
+
+5. Start the server once so Paper loads the runtime plugin and creates `plugins/LapisLazuli/`, then stop the server.
+
+6. Install the bundled TypeScript plugin by copying:
+
+- `/absolute/path/to/my-plugin/dist/<plugin-id>/`
+
+into:
+
+- `<server>/plugins/LapisLazuli/bundles/<plugin-id>/`
+
+7. Start the server again. Lapis Lazuli will discover the bundle and load it on startup.
+
+Hot reload is not part of v1. The supported install/update flow is build bundle, copy bundle folder, restart the server.
+
+For a fuller walkthrough, see [docs/authoring.md](docs/authoring.md).
+
+## Testing Stack
+
+The project now uses three verification layers:
+
+- Bun tests for SDK and CLI behavior.
+- JVM tests in `runtime-core`, including a smoke test that bundles the real example plugin and loads it through `JsLanguageRuntime`.
+- A real Paper server smoke test via `scripts/paper-smoke.sh`, which:
+  - builds the runtime plugin jar
+  - bundles the example script plugin
+  - boots a real Paper server
+  - installs the runtime plugin and bundle
+  - verifies plugin enable logging, server load event wiring, command execution, and clean shutdown
+
+To run the real-server smoke test you must provide a Paper server jar:
+
+```sh
+PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
+```
+
+This should be treated as a release gate for runtime/plugin integration and should also be added to CI once a Paper jar provisioning strategy is chosen.
