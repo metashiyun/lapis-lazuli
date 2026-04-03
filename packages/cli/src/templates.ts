@@ -41,16 +41,20 @@ version = "0.1.0"
 
 
 def on_enable(context):
-    context.logger.info("${displayName} enabled.")
+    context.app.log.info("${displayName} enabled.")
 
     def execute(command):
         command.sender.sendMessage("Hello from ${displayName}.")
 
-    context.commands.register("hello", execute, "Send a hello message from ${displayName}.")
+    context.commands.register({
+        "name": "hello",
+        "description": "Send a hello message from ${displayName}.",
+        "execute": execute,
+    })
 
 
 def on_disable(context):
-    context.logger.info("${displayName} disabled.")
+    context.app.log.info("${displayName} disabled.")
 `;
   }
 
@@ -60,7 +64,7 @@ export default definePlugin({
   name: "${displayName}",
   version: "0.1.0",
   onEnable(context) {
-    context.logger.info("${displayName} enabled.");
+    context.app.log.info("${displayName} enabled.");
 
     context.commands.register({
       name: "hello",
@@ -69,6 +73,9 @@ export default definePlugin({
         sender.sendMessage("Hello from ${displayName}.");
       },
     });
+  },
+  onDisable(context) {
+    context.app.log.info("${displayName} disabled.");
   },
 });
 `;

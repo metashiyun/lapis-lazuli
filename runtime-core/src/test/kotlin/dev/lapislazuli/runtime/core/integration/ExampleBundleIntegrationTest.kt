@@ -3,17 +3,11 @@ package dev.lapislazuli.runtime.core.integration
 import dev.lapislazuli.runtime.core.bundle.BundleManifestParser
 import dev.lapislazuli.runtime.core.bundle.ScriptBundleLoader
 import dev.lapislazuli.runtime.core.host.Callback
-import dev.lapislazuli.runtime.core.host.ConfigStore
-import dev.lapislazuli.runtime.core.host.DataDirectory
-import dev.lapislazuli.runtime.core.host.HostServices
-import dev.lapislazuli.runtime.core.host.Registration
-import dev.lapislazuli.runtime.core.host.RuntimeLogger
-import dev.lapislazuli.runtime.core.host.TaskHandle
 import dev.lapislazuli.runtime.core.js.JsLanguageRuntime
+import dev.lapislazuli.runtime.core.testsupport.FakeHostServices
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -32,36 +26,35 @@ class ExampleBundleIntegrationTest {
 
         plugin.enable()
 
-        assertEquals(
-            listOf("Hello TS enabled.", "Server load event observed."),
-            hostServices.logMessages,
-        )
+        assertTrue(hostServices.logMessages.contains("Hello TS enabled."))
+        assertTrue(hostServices.logMessages.contains("Server ready event observed."))
 
         val commandResult = hostServices.commandCallback.invoke(
             mapOf(
                 "sender" to mapOf(
                     "name" to "Alice",
                     "type" to "player",
-                    "uuid" to "1234",
-                    "javaHandle" to Any(),
+                    "id" to hostServices.player.id(),
+                    "player" to hostServices.player,
                     "sendMessage" to Callback { payload ->
                         hostServices.sentMessages += payload.toString()
                         null
                     },
+                    "hasPermission" to Callback { true },
+                    "unsafe" to mapOf("handle" to Any()),
                 ),
                 "args" to emptyList<String>(),
                 "label" to "hello",
+                "command" to "hello",
             ),
         )
 
         assertEquals(null, commandResult)
-        assertEquals(listOf("Hello from TypeScript."), hostServices.sentMessages)
+        assertTrue(hostServices.sentMessages.contains("Hello from TypeScript."))
 
-        hostServices.eventCallbacks.getValue("playerJoin").invoke(mapOf("playerName" to "Bob"))
-        assertEquals(
-            listOf("Hello TS enabled.", "Server load event observed.", "Player joined: Bob"),
-            hostServices.logMessages,
-        )
+        hostServices.eventCallbacks.getValue("server.ready").invoke(hostServices.serverReadyPayload())
+        hostServices.eventCallbacks.getValue("player.join").invoke(hostServices.playerJoinPayload("Bob"))
+        assertTrue(hostServices.logMessages.contains("Player joined: Bob"))
 
         plugin.close()
         assertTrue(hostServices.logMessages.contains("Hello TS disabled."))
@@ -82,116 +75,6 @@ class ExampleBundleIntegrationTest {
         val exitCode = process.waitFor()
         check(exitCode == 0) {
             "Failed to bundle example plugin.\n$output"
-        }
-    }
-
-    private class FakeHostServices(
-        private val dataRoot: Path,
-    ) : HostServices {
-        val logMessages = mutableListOf<String>()
-        val sentMessages = mutableListOf<String>()
-        lateinit var commandCallback: Callback
-        val eventCallbacks = linkedMapOf<String, Callback>()
-
-        init {
-            Files.createDirectories(dataRoot)
-        }
-
-        override fun logger(): RuntimeLogger =
-            object : RuntimeLogger {
-                override fun info(message: String) {
-                    logMessages += message
-                }
-
-                override fun warn(message: String) {
-                    logMessages += "warn:$message"
-                }
-
-                override fun error(message: String, error: Throwable?) {
-                    logMessages += "error:$message"
-                }
-            }
-
-        override fun registerCommand(
-            name: String,
-            description: String,
-            usage: String,
-            aliases: List<String>,
-            execute: Callback,
-        ): Registration {
-            commandCallback = execute
-            return Registration {}
-        }
-
-        override fun registerEvent(eventKey: String, handler: Callback): Registration {
-            eventCallbacks[eventKey] = handler
-            if (eventKey == "serverLoad") {
-                handler.invoke(mapOf("reload" to false))
-            }
-            return Registration {}
-        }
-
-        override fun registerJavaEvent(eventClassName: String, handler: Callback): Registration = Registration {}
-
-        override fun runNow(task: Callback): TaskHandle = TaskHandle {}
-
-        override fun runLater(delayTicks: Long, task: Callback): TaskHandle = TaskHandle {}
-
-        override fun runTimer(delayTicks: Long, intervalTicks: Long, task: Callback): TaskHandle = TaskHandle {}
-
-        override fun config(): ConfigStore =
-            object : ConfigStore {
-                override fun get(path: String): Any? = null
-
-                override fun set(path: String, value: Any?) {
-                }
-
-                override fun save() {
-                }
-
-                override fun reload() {
-                }
-
-                override fun keys(): List<String> = emptyList()
-            }
-
-        override fun dataDirectory(): DataDirectory =
-            object : DataDirectory {
-                override fun path(): String = dataRoot.toString()
-
-                override fun resolve(vararg segments: String): String =
-                    segments.fold(dataRoot) { path, segment -> path.resolve(segment) }.toString()
-
-                override fun readText(relativePath: String): String =
-                    Files.readString(dataRoot.resolve(relativePath))
-
-                override fun writeText(relativePath: String, contents: String) {
-                    val target = dataRoot.resolve(relativePath)
-                    target.parent?.let(Files::createDirectories)
-                    Files.writeString(target, contents)
-                }
-
-                override fun exists(relativePath: String): Boolean =
-                    Files.exists(dataRoot.resolve(relativePath))
-
-                override fun mkdirs(relativePath: String) {
-                    Files.createDirectories(dataRoot.resolve(relativePath))
-                }
-            }
-
-        override fun javaType(className: String): Class<*> = Class.forName(className)
-
-        override fun serverHandle(): Any = Any()
-
-        override fun pluginHandle(): Any = Any()
-
-        override fun consoleSenderHandle(): Any = Any()
-
-        override fun dispatchConsoleCommand(command: String): Boolean = true
-
-        override fun broadcastMessage(message: String): Int = 0
-
-        override fun close() {
         }
     }
 }

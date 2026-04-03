@@ -107,7 +107,7 @@ wait_for_log() {
 }
 
 wait_for_log "[hello-ts] Hello TS enabled." "$SERVER_TIMEOUT"
-wait_for_log "[hello-ts] Server load event observed." "$SERVER_TIMEOUT"
+wait_for_log "[hello-ts] Server ready event observed." "$SERVER_TIMEOUT"
 wait_for_log "Loaded 1 bundle(s), failed 0." "$SERVER_TIMEOUT"
 
 printf 'hello\n' >&3
