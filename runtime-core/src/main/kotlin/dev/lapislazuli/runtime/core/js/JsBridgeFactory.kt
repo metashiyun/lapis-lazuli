@@ -72,23 +72,15 @@ class JsBridgeFactory {
     private fun createCommands(hostServices: HostServices): Map<String, Any?> =
         mapOf(
             "register" to executable { arguments ->
-                require(arguments.isNotEmpty()) { "commands.register requires a command definition." }
-
-                val spec = arguments[0]
-                val name = memberString(spec, "name", required = true)
-                val description = memberString(spec, "description", required = false)
-                val usage = memberString(spec, "usage", required = false)
-                val aliases = memberStringList(spec, "aliases")
-                val execute = spec.getMember("execute")
-                requireExecutable(execute, "execute")
+                val registrationSpec = parseCommandRegistration(arguments)
 
                 val registration = hostServices.registerCommand(
-                    name = name,
-                    description = description,
-                    usage = usage,
-                    aliases = aliases,
+                    name = registrationSpec.name,
+                    description = registrationSpec.description,
+                    usage = registrationSpec.usage,
+                    aliases = registrationSpec.aliases,
                 ) { payload ->
-                    executeCallback(execute, payload)
+                    executeCallback(registrationSpec.execute, payload)
                 }
 
                 mapOf(
@@ -99,6 +91,37 @@ class JsBridgeFactory {
                 )
             },
         )
+
+    private fun parseCommandRegistration(arguments: Array<out Value>): CommandRegistration =
+        when {
+            arguments.isEmpty() -> error("commands.register requires a command definition.")
+            arguments[0].isString -> {
+                require(arguments.size >= 2) { "commands.register(name, execute, ...) requires an execute callback." }
+                val execute = arguments[1]
+                requireExecutable(execute, "execute")
+
+                CommandRegistration(
+                    name = arguments[0].asString(),
+                    execute = execute,
+                    description = optionalStringArg(arguments, 2),
+                    usage = optionalStringArg(arguments, 3),
+                    aliases = optionalStringArray(arguments, 4),
+                )
+            }
+            else -> {
+                val spec = arguments[0]
+                val execute = requireNotNull(member(spec, "execute"))
+                requireExecutable(execute, "execute")
+
+                CommandRegistration(
+                    name = memberString(spec, "name", required = true),
+                    execute = execute,
+                    description = memberString(spec, "description", required = false),
+                    usage = memberString(spec, "usage", required = false),
+                    aliases = memberStringList(spec, "aliases"),
+                )
+            }
+        }
 
     private fun createScheduler(hostServices: HostServices): Map<String, Any?> =
         mapOf(
@@ -235,8 +258,15 @@ class JsBridgeFactory {
         require(value != null && value.canExecute()) { "Expected executable field \"$field\"." }
     }
 
+    private fun member(value: Value, field: String): Value? =
+        when {
+            value.hasMembers() && value.hasMember(field) -> value.getMember(field)
+            value.hasHashEntries() && value.hasHashEntry(field) -> value.getHashValue(field)
+            else -> null
+        }
+
     private fun memberString(value: Value, field: String, required: Boolean): String {
-        val member = value.getMember(field)
+        val member = member(value, field)
         if (member == null || member.isNull) {
             require(!required) { "Expected string field \"$field\"." }
             return ""
@@ -247,7 +277,7 @@ class JsBridgeFactory {
     }
 
     private fun memberStringList(value: Value, field: String): List<String> {
-        val member = value.getMember(field)
+        val member = member(value, field)
         if (member == null || member.isNull) {
             return emptyList()
         }
@@ -270,6 +300,33 @@ class JsBridgeFactory {
             "Expected integer argument \"$name\"."
         }
         return arguments[index].asLong()
+    }
+
+    private fun optionalStringArg(arguments: Array<out Value>, index: Int): String {
+        if (arguments.size <= index || arguments[index].isNull) {
+            return ""
+        }
+
+        require(arguments[index].isString) {
+            "Expected string argument at position ${index + 1}."
+        }
+        return arguments[index].asString()
+    }
+
+    private fun optionalStringArray(arguments: Array<out Value>, index: Int): List<String> {
+        if (arguments.size <= index || arguments[index].isNull) {
+            return emptyList()
+        }
+
+        val value = arguments[index]
+        require(value.hasArrayElements()) {
+            "Expected array argument at position ${index + 1}."
+        }
+        return List(value.arraySize.toInt()) { elementIndex ->
+            val element = value.getArrayElement(elementIndex.toLong())
+            require(element.isString) { "Expected string alias at position ${elementIndex + 1}." }
+            element.asString()
+        }
     }
 
     private fun stringArray(arguments: Array<out Value>): Array<String> =
@@ -360,6 +417,14 @@ class JsBridgeFactory {
         @Throws(Exception::class)
         fun execute(arguments: Array<out Value>): Any?
     }
+
+    private data class CommandRegistration(
+        val name: String,
+        val execute: Value,
+        val description: String,
+        val usage: String,
+        val aliases: List<String>,
+    )
 
     private inner class StaticHostType(
         private val type: Class<*>,
