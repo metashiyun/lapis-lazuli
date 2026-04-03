@@ -50,6 +50,7 @@ describe("CLI library", () => {
 
     try {
       await createProject(pythonDir, "Hello Python", "python");
+      expect(await Bun.file(join(pythonDir, "pyproject.toml")).exists()).toBe(true);
       await writeTextFile(
         join(pythonDir, "src", "helpers.py"),
         [
@@ -61,21 +62,19 @@ describe("CLI library", () => {
       await writeTextFile(
         join(pythonDir, "src", "main.py"),
         [
-          'from helpers import greet',
+          'from lapis_lazuli import Plugin',
+          "from helpers import greet",
           "",
-          'name = "Hello Python"',
+          'plugin = Plugin("Hello Python", version="0.1.0")',
           "",
+          "@plugin.startup",
           "def on_enable(context):",
           '    context.app.log.info("Hello Python enabled.")',
           "",
           "    def execute(command):",
-          "        command.sender.sendMessage(greet(command.sender.name))",
+          "        command.sender.send_message(greet(command.sender.name))",
           "",
-          '    context.commands.register({',
-          '        "name": "hello",',
-          '        "description": "Send a greeting.",',
-          '        "execute": execute,',
-          "    })",
+          '    context.commands.register("hello", execute, description="Send a greeting.")',
           "",
         ].join("\n"),
       );
@@ -87,6 +86,7 @@ describe("CLI library", () => {
       expect(result.bundleDir.endsWith(join("python-output"))).toBe(true);
       expect(await Bun.file(result.mainPath).exists()).toBe(true);
       expect(await Bun.file(join(result.bundleDir, "src", "helpers.py")).exists()).toBe(true);
+      expect(await Bun.file(join(result.bundleDir, "lapis_lazuli", "__init__.py")).exists()).toBe(true);
       expect(await Bun.file(result.manifestPath).json()).toEqual(
         expect.objectContaining({
           id: "hello-python",

@@ -19,6 +19,20 @@ export function renderPackageJson(name: string): string {
   );
 }
 
+export function renderPythonPyproject(name: string): string {
+  return [
+    "[project]",
+    `name = "${name}"`,
+    'version = "0.1.0"',
+    'description = "Lapis Lazuli Python plugin"',
+    'requires-python = ">=3.11"',
+    "dependencies = [",
+    '  "lapis-lazuli-sdk>=0.1.0",',
+    "]",
+    "",
+  ].join("\n");
+}
+
 export function renderManifest(id: string, displayName: string, engine: TemplateEngine = "js"): string {
   return JSON.stringify(
     {
@@ -36,23 +50,26 @@ export function renderManifest(id: string, displayName: string, engine: Template
 
 export function renderSource(displayName: string, engine: TemplateEngine = "js"): string {
   if (engine === "python") {
-    return `name = "${displayName}"
-version = "0.1.0"
+    return `from lapis_lazuli import Plugin
+
+plugin = Plugin("${displayName}", version="0.1.0")
 
 
+@plugin.startup
 def on_enable(context):
     context.app.log.info("${displayName} enabled.")
 
     def execute(command):
-        command.sender.sendMessage("Hello from ${displayName}.")
+        command.sender.send_message("Hello from ${displayName}.")
 
-    context.commands.register({
-        "name": "hello",
-        "description": "Send a hello message from ${displayName}.",
-        "execute": execute,
-    })
+    context.commands.register(
+        "hello",
+        execute,
+        description="Send a hello message from ${displayName}.",
+    )
 
 
+@plugin.shutdown
 def on_disable(context):
     context.app.log.info("${displayName} disabled.")
 `;
@@ -84,4 +101,8 @@ export default definePlugin({
 export const GITIGNORE = `dist
 .lapis
 node_modules
+.venv
+__pycache__
+.mypy_cache
+.pytest_cache
 `;

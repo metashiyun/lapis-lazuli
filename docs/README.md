@@ -14,7 +14,7 @@ This directory contains the current technical docs for Lapis Lazuli.
 - [api/typescript-sdk.md](api/typescript-sdk.md): public `@lapis-lazuli/sdk` contract
 - [cli.md](cli.md): CLI commands
 - [bundle-format.md](bundle-format.md): manifest and bundle layout
-- [python-sdk.md](python-sdk.md): Python status
+- [python-sdk.md](python-sdk.md): public Python SDK
 
 ## Guides
 

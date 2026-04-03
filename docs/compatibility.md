@@ -18,7 +18,7 @@ It does not claim full Bukkit, Spigot, or Paper API parity. Instead, it provides
 | --- | --- | --- |
 | TypeScript authoring | Supported | Primary API design target |
 | JavaScript authoring | Supported | Same runtime context as TS |
-| Python authoring | Supported / early | Runtime works, but no dedicated Python package yet |
+| Python authoring | Supported | Public `lapis_lazuli` SDK with Pythonic wrappers over the shared runtime |
 | `@lapis-lazuli/sdk` | Active redesign | Service-oriented Lapis API |
 | Bukkit-common SDK core | In progress | Runtime is shaped around capabilities common to Bukkit-family servers |
 | Paper target | Supported | Compile target and smoke-tested path |
@@ -39,6 +39,10 @@ The public SDK now centers on:
 - `items`
 - `inventory`
 - `chat`
+- `effects`
+- `recipes`
+- `bossBars`
+- `scoreboards`
 - `storage`
 - `config`
 - `unsafe`

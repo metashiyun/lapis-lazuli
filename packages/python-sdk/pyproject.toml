@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lapis-lazuli-sdk"
+version = "0.1.0"
+description = "Python SDK for Lapis Lazuli plugins"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Lapis Lazuli" },
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lapis_lazuli"]

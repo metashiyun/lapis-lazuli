@@ -14,6 +14,10 @@ The public model is service-oriented:
 - `items`
 - `inventory`
 - `chat`
+- `effects`
+- `recipes`
+- `bossBars`
+- `scoreboards`
 - `storage`
 - `config`
 - `unsafe`

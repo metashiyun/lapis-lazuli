@@ -1,7 +1,7 @@
 # Lapis Lazuli
 
-Lapis Lazuli is a modern Minecraft plugin SDK for TypeScript, JavaScript, and optional
-Python. You write plugins against the Lapis SDK, bundle them, and run them through the
+Lapis Lazuli is a modern Minecraft plugin SDK for TypeScript, JavaScript, and Python.
+You write plugins against the Lapis SDK, bundle them, and run them through the
 Lapis runtime plugin on Bukkit-family servers.
 
 ## Quick Start

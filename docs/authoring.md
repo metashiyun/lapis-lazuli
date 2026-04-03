@@ -46,9 +46,12 @@ export default definePlugin({
 Python example:
 
 ```py
-name = "My Python Plugin"
+from lapis_lazuli import Plugin
+
+plugin = Plugin("My Python Plugin", version="0.1.0")
 
 
+@plugin.startup
 def on_enable(context):
     context.app.log.info("My Python Plugin enabled.")
 ```

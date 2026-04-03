@@ -3,7 +3,7 @@ import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, 
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderManifest, renderPackageJson, renderSource, GITIGNORE } from "./templates";
+import { renderManifest, renderPackageJson, renderPythonPyproject, renderSource, GITIGNORE } from "./templates";
 
 export type LapisEngine = "js" | "python";
 
@@ -22,6 +22,7 @@ export interface ValidationResult {
 }
 
 const LOCAL_SDK_DIR = fileURLToPath(new URL("../../sdk", import.meta.url));
+const LOCAL_PYTHON_SDK_DIR = fileURLToPath(new URL("../../python-sdk/src/lapis_lazuli", import.meta.url));
 const SUPPORTED_ENGINES = new Set<LapisEngine>(["js", "python"]);
 const PYTHON_BUNDLE_IGNORED_DIRECTORIES = new Set([
   ".git",
@@ -184,6 +185,8 @@ export async function createProject(
   await mkdir(join(projectDir, "src"), { recursive: true });
   if (supportedEngine === "js") {
     await writeFile(join(projectDir, "package.json"), renderPackageJson(id), "utf8");
+  } else {
+    await writeFile(join(projectDir, "pyproject.toml"), renderPythonPyproject(id), "utf8");
   }
   await writeFile(join(projectDir, "lapis-plugin.json"), renderManifest(id, pluginName, supportedEngine), "utf8");
   await writeFile(
@@ -305,6 +308,7 @@ function normalizeBundlePath(path: string): string {
 
 async function stagePythonProject(projectDir: string, buildDir: string): Promise<void> {
   await copyDirectoryContents(resolve(projectDir), buildDir, shouldIncludePythonBundlePath);
+  await ensureLocalPythonSdk(buildDir);
 }
 
 function shouldIncludePythonBundlePath(relativePath: string, entry: Dirent): boolean {
@@ -349,4 +353,20 @@ async function copyDirectoryContents(
   }
 
   await visit(sourceDir);
+}
+
+async function ensureLocalPythonSdk(buildDir: string): Promise<void> {
+  const localSdkExists = await stat(LOCAL_PYTHON_SDK_DIR).catch(() => null);
+  if (!localSdkExists?.isDirectory()) {
+    return;
+  }
+
+  const targetDir = join(buildDir, "lapis_lazuli");
+  const existingTarget = await stat(targetDir).catch(() => null);
+  if (existingTarget?.isDirectory()) {
+    return;
+  }
+
+  await mkdir(targetDir, { recursive: true });
+  await copyDirectoryContents(LOCAL_PYTHON_SDK_DIR, targetDir);
 }

@@ -1,0 +1,8 @@
+[project]
+name = "hello-python"
+version = "0.1.0"
+description = "Example Lapis Lazuli Python plugin"
+requires-python = ">=3.11"
+dependencies = [
+  "lapis-lazuli-sdk>=0.1.0",
+]
