@@ -1,3 +1,5 @@
+type TemplateEngine = "js" | "python";
+
 export function renderPackageJson(name: string): string {
   return JSON.stringify(
     {
@@ -17,14 +19,14 @@ export function renderPackageJson(name: string): string {
   );
 }
 
-export function renderManifest(id: string, displayName: string): string {
+export function renderManifest(id: string, displayName: string, engine: TemplateEngine = "js"): string {
   return JSON.stringify(
     {
       id,
       name: displayName,
       version: "0.1.0",
-      engine: "js",
-      main: "./src/index.ts",
+      engine,
+      main: engine === "js" ? "./src/index.ts" : "./src/main.py",
       apiVersion: "1.0",
     },
     null,
@@ -32,7 +34,26 @@ export function renderManifest(id: string, displayName: string): string {
   );
 }
 
-export function renderSource(displayName: string): string {
+export function renderSource(displayName: string, engine: TemplateEngine = "js"): string {
+  if (engine === "python") {
+    return `name = "${displayName}"
+version = "0.1.0"
+
+
+def on_enable(context):
+    context.logger.info("${displayName} enabled.")
+
+    def execute(command):
+        command.sender.sendMessage("Hello from ${displayName}.")
+
+    context.commands.register("hello", execute, "Send a hello message from ${displayName}.")
+
+
+def on_disable(context):
+    context.logger.info("${displayName} disabled.")
+`;
+  }
+
   return `import { definePlugin } from "@lapis-lazuli/sdk";
 
 export default definePlugin({
@@ -57,4 +78,3 @@ export const GITIGNORE = `dist
 .lapis
 node_modules
 `;
-

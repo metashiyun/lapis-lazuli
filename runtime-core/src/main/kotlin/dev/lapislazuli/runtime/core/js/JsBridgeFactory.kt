@@ -11,6 +11,8 @@ import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyArray
 import org.graalvm.polyglot.proxy.ProxyExecutable
 import org.graalvm.polyglot.proxy.ProxyObject
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 
 class JsBridgeFactory {
     fun createPluginContext(hostServices: HostServices): Any? {
@@ -89,23 +91,15 @@ class JsBridgeFactory {
     private fun createCommands(hostServices: HostServices): Map<String, Any?> =
         mapOf(
             "register" to executable { arguments ->
-                require(arguments.isNotEmpty()) { "commands.register requires a command definition." }
-
-                val spec = arguments[0]
-                val name = memberString(spec, "name", required = true)
-                val description = memberString(spec, "description", required = false)
-                val usage = memberString(spec, "usage", required = false)
-                val aliases = memberStringList(spec, "aliases")
-                val execute = spec.getMember("execute")
-                requireExecutable(execute, "execute")
+                val registrationSpec = parseCommandRegistration(arguments)
 
                 val registration = hostServices.registerCommand(
-                    name = name,
-                    description = description,
-                    usage = usage,
-                    aliases = aliases,
+                    name = registrationSpec.name,
+                    description = registrationSpec.description,
+                    usage = registrationSpec.usage,
+                    aliases = registrationSpec.aliases,
                 ) { payload ->
-                    executeCallback(execute, payload)
+                    executeCallback(registrationSpec.execute, payload)
                 }
 
                 mapOf(
@@ -116,6 +110,37 @@ class JsBridgeFactory {
                 )
             },
         )
+
+    private fun parseCommandRegistration(arguments: Array<out Value>): CommandRegistration =
+        when {
+            arguments.isEmpty() -> error("commands.register requires a command definition.")
+            arguments[0].isString -> {
+                require(arguments.size >= 2) { "commands.register(name, execute, ...) requires an execute callback." }
+                val execute = arguments[1]
+                requireExecutable(execute, "execute")
+
+                CommandRegistration(
+                    name = arguments[0].asString(),
+                    execute = execute,
+                    description = optionalStringArg(arguments, 2),
+                    usage = optionalStringArg(arguments, 3),
+                    aliases = optionalStringArray(arguments, 4),
+                )
+            }
+            else -> {
+                val spec = arguments[0]
+                val execute = requireNotNull(member(spec, "execute"))
+                requireExecutable(execute, "execute")
+
+                CommandRegistration(
+                    name = memberString(spec, "name", required = true),
+                    execute = execute,
+                    description = memberString(spec, "description", required = false),
+                    usage = memberString(spec, "usage", required = false),
+                    aliases = memberStringList(spec, "aliases"),
+                )
+            }
+        }
 
     private fun createScheduler(hostServices: HostServices): Map<String, Any?> =
         mapOf(
@@ -194,7 +219,7 @@ class JsBridgeFactory {
     private fun createJavaInterop(hostServices: HostServices): Map<String, Any?> =
         mapOf(
             "type" to executable { arguments ->
-                hostServices.javaType(stringArg(arguments, 0, "className"))
+                StaticHostType(hostServices.javaType(stringArg(arguments, 0, "className")))
             },
         )
 
@@ -265,8 +290,15 @@ class JsBridgeFactory {
         require(value != null && value.canExecute()) { "Expected executable field \"$field\"." }
     }
 
+    private fun member(value: Value, field: String): Value? =
+        when {
+            value.hasMembers() && value.hasMember(field) -> value.getMember(field)
+            value.hasHashEntries() && value.hasHashEntry(field) -> value.getHashValue(field)
+            else -> null
+        }
+
     private fun memberString(value: Value, field: String, required: Boolean): String {
-        val member = value.getMember(field)
+        val member = member(value, field)
         if (member == null || member.isNull) {
             require(!required) { "Expected string field \"$field\"." }
             return ""
@@ -277,7 +309,7 @@ class JsBridgeFactory {
     }
 
     private fun memberStringList(value: Value, field: String): List<String> {
-        val member = value.getMember(field)
+        val member = member(value, field)
         if (member == null || member.isNull) {
             return emptyList()
         }
@@ -302,14 +334,157 @@ class JsBridgeFactory {
         return arguments[index].asLong()
     }
 
+    private fun optionalStringArg(arguments: Array<out Value>, index: Int): String {
+        if (arguments.size <= index || arguments[index].isNull) {
+            return ""
+        }
+
+        require(arguments[index].isString) {
+            "Expected string argument at position ${index + 1}."
+        }
+        return arguments[index].asString()
+    }
+
+    private fun optionalStringArray(arguments: Array<out Value>, index: Int): List<String> {
+        if (arguments.size <= index || arguments[index].isNull) {
+            return emptyList()
+        }
+
+        val value = arguments[index]
+        require(value.hasArrayElements()) {
+            "Expected array argument at position ${index + 1}."
+        }
+        return List(value.arraySize.toInt()) { elementIndex ->
+            val element = value.getArrayElement(elementIndex.toLong())
+            require(element.isString) { "Expected string alias at position ${elementIndex + 1}." }
+            element.asString()
+        }
+    }
+
     private fun stringArray(arguments: Array<out Value>): Array<String> =
         Array(arguments.size) { index ->
             require(arguments[index].isString) { "resolve only accepts string path segments." }
             arguments[index].asString()
         }
 
+    private fun invokeStaticMethod(type: Class<*>, methodName: String, arguments: Array<out Value>): Any? {
+        val overloads = type.methods.filter { method ->
+            method.name == methodName && Modifier.isStatic(method.modifiers)
+        }
+
+        require(overloads.isNotEmpty()) {
+            "Unknown static method ${type.name}.$methodName"
+        }
+
+        for (method in overloads) {
+            val convertedArguments = convertArguments(method, arguments) ?: continue
+            return method.invoke(null, *convertedArguments)
+        }
+
+        error(
+            "No matching overload for ${type.name}.$methodName(${arguments.joinToString { argument ->
+                when {
+                    argument.isNull -> "null"
+                    argument.isHostObject -> argument.asHostObject<Any>()::class.java.name
+                    argument.isString -> "String"
+                    argument.isBoolean -> "Boolean"
+                    argument.fitsInLong() -> "Long"
+                    argument.fitsInDouble() -> "Double"
+                    else -> "Value"
+                }
+            }})",
+        )
+    }
+
+    private fun convertArguments(method: Method, arguments: Array<out Value>): Array<Any?>? {
+        if (method.parameterCount != arguments.size || method.isVarArgs) {
+            return null
+        }
+
+        return Array(arguments.size) { index ->
+            convertArgument(arguments[index], method.parameterTypes[index]) ?: return null
+        }
+    }
+
+    private fun convertArgument(argument: Value, targetType: Class<*>): Any? {
+        if (argument.isNull) {
+            return if (targetType.isPrimitive) null else null
+        }
+
+        if (argument.isHostObject) {
+            val hostObject = argument.asHostObject<Any>()
+            if (targetType.isInstance(hostObject)) {
+                return hostObject
+            }
+        }
+
+        return when (targetType) {
+            String::class.java -> argument.takeIf(Value::isString)?.asString()
+            Boolean::class.javaPrimitiveType, Boolean::class.javaObjectType -> argument.takeIf(Value::isBoolean)?.asBoolean()
+            Int::class.javaPrimitiveType, Int::class.javaObjectType -> argument.takeIf(Value::fitsInInt)?.asInt()
+            Long::class.javaPrimitiveType, Long::class.javaObjectType -> argument.takeIf(Value::fitsInLong)?.asLong()
+            Double::class.javaPrimitiveType, Double::class.javaObjectType -> argument.takeIf(Value::fitsInDouble)?.asDouble()
+            Float::class.javaPrimitiveType, Float::class.javaObjectType -> argument.takeIf(Value::fitsInDouble)?.asDouble()?.toFloat()
+            Short::class.javaPrimitiveType, Short::class.javaObjectType -> argument.takeIf(Value::fitsInInt)?.asInt()?.toShort()
+            Byte::class.javaPrimitiveType, Byte::class.javaObjectType -> argument.takeIf(Value::fitsInInt)?.asInt()?.toByte()
+            Char::class.javaPrimitiveType, Char::class.javaObjectType -> argument
+                .takeIf(Value::isString)
+                ?.asString()
+                ?.takeIf { it.length == 1 }
+                ?.first()
+            else -> {
+                val javaValue = JsValues.toJavaValue(argument)
+                if (javaValue == null) {
+                    if (targetType.isPrimitive) null else null
+                } else if (targetType.isInstance(javaValue)) {
+                    javaValue
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
     private fun interface Executable {
         @Throws(Exception::class)
         fun execute(arguments: Array<out Value>): Any?
+    }
+
+    private data class CommandRegistration(
+        val name: String,
+        val execute: Value,
+        val description: String,
+        val usage: String,
+        val aliases: List<String>,
+    )
+
+    private inner class StaticHostType(
+        private val type: Class<*>,
+    ) : ProxyObject {
+        private val staticMethodNames = type.methods
+            .filter { Modifier.isStatic(it.modifiers) }
+            .map(Method::getName)
+            .toSet()
+        private val staticFields = type.fields
+            .filter { Modifier.isStatic(it.modifiers) }
+            .associateBy { it.name }
+
+        override fun getMember(key: String): Any? {
+            if (staticMethodNames.contains(key)) {
+                return executable { arguments -> invokeStaticMethod(type, key, arguments) }
+            }
+
+            return staticFields[key]?.get(null)
+        }
+
+        override fun getMemberKeys(): Any =
+            (staticMethodNames + staticFields.keys).sorted().toTypedArray()
+
+        override fun hasMember(key: String): Boolean =
+            staticMethodNames.contains(key) || staticFields.containsKey(key)
+
+        override fun putMember(key: String, value: Value) {
+            throw UnsupportedOperationException("Java types are read-only from script code.")
+        }
     }
 }

@@ -8,7 +8,9 @@ Spigot, or Paper API surface.
 What it supports today is:
 
 - a JavaScript runtime
+- a Python runtime
 - TypeScript and JavaScript authoring
+- Python authoring
 - an expanding stable host bridge
 - generic Java event registration
 - a server bridge with raw server/plugin access
@@ -19,10 +21,11 @@ What it supports today is:
 | Area | Status | Notes |
 | --- | --- | --- |
 | JavaScript runtime | Supported | `manifest.engine` must be `"js"` |
+| Python runtime | Supported | `manifest.engine` may be `"python"` |
 | TypeScript authoring | Supported | Bundled through Bun into JS |
 | JavaScript authoring | Supported | Plain JS bundles are valid |
-| Python authoring SDK | Not implemented | No Python package exists in `packages/` |
-| Python runtime engine | Not implemented | `runtime-core` only registers `JsLanguageRuntime` |
+| Python authoring | Supported | Python bundles are staged and loaded through the Python runtime |
+| Python SDK package | Not implemented | No dedicated Python package exists in `packages/` yet |
 | Paper 1.21.x server target | Supported | Compile target and smoke-tested path |
 | Bukkit server target | Experimental / unverified | No compatibility tests or release guarantee yet |
 | Spigot server target | Experimental / unverified | No compatibility tests or release guarantee yet |

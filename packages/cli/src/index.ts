@@ -6,16 +6,18 @@ function usage(): never {
   throw new Error(
     [
       "Usage:",
-      "  lapis create <directory> [display-name]",
+      "  lapis create <directory> [display-name] [engine]",
       "  lapis validate <directory>",
       "  lapis bundle <directory> [output-directory]",
       "  lapis build <directory>",
+      "",
+      "Supported engines: js, python",
     ].join("\n"),
   );
 }
 
 async function main(): Promise<void> {
-  const [command, firstArg, secondArg] = process.argv.slice(2);
+  const [command, firstArg, secondArg, thirdArg] = process.argv.slice(2);
 
   if (!command) {
     usage();
@@ -27,7 +29,7 @@ async function main(): Promise<void> {
         usage();
       }
 
-      const result = await createProject(firstArg, secondArg);
+      const result = await createProject(firstArg, secondArg, thirdArg as "js" | "python" | undefined);
       console.log(`Created ${result.projectDir}`);
       return;
     }

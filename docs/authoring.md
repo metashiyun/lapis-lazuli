@@ -23,23 +23,25 @@ This prepares:
 
 ```sh
 bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
+# or
+bun packages/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
 The scaffold contains:
 
 - `lapis-plugin.json`
-- `src/index.ts`
-- `package.json`
+- `src/index.ts` for JS/TS projects or `src/main.py` for Python projects
+- `package.json` for JS/TS projects
 - `.gitignore`
 
 ## 2. Implement The Plugin
 
 Edit:
 
-- `/absolute/path/to/my-plugin/src/index.ts`
-- `/absolute/path/to/my-plugin/lapis-plugin.json`
+- the generated entrypoint file
+- `lapis-plugin.json`
 
-Minimal example:
+TypeScript example:
 
 ```ts
 import { definePlugin } from "@lapis-lazuli/sdk";
@@ -51,6 +53,18 @@ export default definePlugin({
     context.logger.info("My Plugin enabled.");
   },
 });
+```
+
+Python entrypoints can expose `name` plus `on_enable` and `on_disable` functions.
+
+Python example:
+
+```py
+name = "My Python Plugin"
+
+
+def on_enable(context):
+    context.logger.info("My Python Plugin enabled.")
 ```
 
 For the available runtime surface, see [api/runtime-host-api.md](api/runtime-host-api.md)
@@ -66,7 +80,11 @@ bun packages/cli/src/index.ts bundle /absolute/path/to/my-plugin
 This produces a deployable bundle directory:
 
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/lapis-plugin.json`
-- `/absolute/path/to/my-plugin/dist/<plugin-id>/main.js`
+- `/absolute/path/to/my-plugin/dist/<plugin-id>/...`
+
+TypeScript and JavaScript projects are bundled to `main.js`.
+Python projects keep their source layout, so the bundle typically contains `src/main.py`
+and any bundle-local modules alongside it.
 
 ## 4. Install The Runtime Adapter
 
@@ -99,7 +117,7 @@ The deployed structure should look like:
 ```text
 <server>/plugins/runtime-bukkit.jar
 <server>/plugins/LapisLazuli/bundles/<plugin-id>/lapis-plugin.json
-<server>/plugins/LapisLazuli/bundles/<plugin-id>/main.js
+<server>/plugins/LapisLazuli/bundles/<plugin-id>/...
 ```
 
 ## 6. Start Paper
@@ -108,7 +126,7 @@ On startup the runtime:
 
 - scans `plugins/LapisLazuli/bundles/`
 - parses each `lapis-plugin.json`
-- loads each bundle entrypoint
+- loads each configured bundle entrypoint
 - invokes `onEnable`
 
 If the bundle loads successfully, the script plugin logs will appear in the Paper
@@ -134,6 +152,9 @@ hotReload:
 The runtime ignores bundle-local `config.yml` and `data/` paths during file watching so
 plugin persistence does not trigger reload loops.
 
+Python bundles currently support bundle-local source files and modules. Third-party
+Python packages are not bundled automatically yet.
+
 ## 8. Recommended Development Model
 
 Use the stable host API for common plugin behavior:
@@ -141,8 +162,10 @@ Use the stable host API for common plugin behavior:
 - logging
 - simple commands
 - the documented event keys
+- generic Java event hooks
 - scheduler tasks
 - config and data storage
+- server bridge access
 
 Use `context.javaInterop.type(...)` only when you need lower-level server APIs that are
 not yet wrapped by Lapis Lazuli.
