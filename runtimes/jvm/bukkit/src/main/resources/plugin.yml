@@ -1,5 +1,5 @@
 name: LapisLazuli
-main: dev.lapislazuli.runtimes.jvm.bukkit.LapisLazuliPlugin
+main: org.shiyun.lapis.runtimes.jvm.bukkit.LapisLazuliPlugin
 version: ${version}
 api-version: "1.21"
 author: OpenAI
