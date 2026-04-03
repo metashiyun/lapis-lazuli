@@ -1,0 +1,3 @@
+hotReload:
+  enabled: true
+  pollIntervalTicks: 20
