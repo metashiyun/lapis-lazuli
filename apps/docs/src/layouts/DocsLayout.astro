@@ -1,0 +1,70 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import { getDocsByGroup, repoDocsUrl } from "../lib/docs";
+
+interface Props {
+  title?: string;
+  description?: string;
+  currentPath?: string;
+}
+
+const {
+  title = "Documentation | Lapis Lazuli",
+  description = "Technical documentation for the Lapis Lazuli runtime, SDKs, and authoring workflow.",
+  currentPath = "/docs"
+} = Astro.props;
+
+const navGroups = getDocsByGroup();
+const docsIsActive = currentPath.startsWith("/docs");
+---
+
+<BaseLayout title={title} description={description} pageClass="docs-page">
+  <div class="docs-app">
+    <header class="docs-topbar">
+      <a class="docs-brand" href="/">Lapis Lazuli</a>
+
+      <nav class="docs-primary-nav" aria-label="Primary">
+        <a class:list={["docs-toplink", docsIsActive && "active"]} href="/docs">Docs</a>
+        <a class="docs-toplink" href="/">Home</a>
+        <a class="docs-toplink" href="https://github.com/metashiyun/lapis-lazuli">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="docs-frame">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <a
+          class:list={["docs-sidebar-home", currentPath === "/docs" && "active"]}
+          href="/docs"
+        >
+          Documentation Index
+        </a>
+
+        {navGroups.map((group) => (
+          <section class="docs-nav-section">
+            <p class="docs-nav-label">{group.label}</p>
+
+            <ul class="docs-nav-list">
+              {group.docs.map((doc) => (
+                <li>
+                  <a
+                    class:list={["docs-nav-link", currentPath === doc.url && "active"]}
+                    href={doc.url}
+                    aria-current={currentPath === doc.url ? "page" : undefined}
+                  >
+                    {doc.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+
+        <a class="docs-source-link" href={repoDocsUrl}>Browse raw docs</a>
+      </aside>
+
+      <main class="docs-main">
+        <slot />
+      </main>
+    </div>
+  </div>
+</BaseLayout>

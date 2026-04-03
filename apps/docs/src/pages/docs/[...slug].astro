@@ -1,0 +1,62 @@
+---
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import { getAdjacentDocs, getDocBySlug, getDocs } from "../../lib/docs";
+
+export function getStaticPaths() {
+  return getDocs().map((doc) => ({
+    params: {
+      slug: `${doc.slug}.md`
+    }
+  }));
+}
+
+const routeSlug = Astro.params.slug ?? "";
+const normalizedSlug = routeSlug.replace(/\.md$/, "");
+const doc = getDocBySlug(normalizedSlug);
+
+if (!doc) {
+  throw new Error(`Unable to resolve docs entry for slug "${routeSlug}".`);
+}
+
+const { previous, next } = getAdjacentDocs(doc.slug);
+const Content = doc.Content;
+---
+
+<DocsLayout
+  title={`${doc.title} | Lapis Lazuli Docs`}
+  description={doc.description}
+  currentPath={doc.url}
+>
+  <article class="docs-article">
+    <header class="docs-article-meta">
+      <p class="docs-kicker">{doc.groupLabel}</p>
+
+      <div class="docs-meta-links">
+        <a href="/docs">Back to docs</a>
+        <a href={doc.sourceUrl}>View source</a>
+      </div>
+    </header>
+
+    <div class="docs-prose">
+      <Content />
+    </div>
+
+    {(previous || next) && (
+      <nav class="docs-article-pager" aria-label="Document pagination">
+        {previous && (
+          <a class="docs-pager-link" href={previous.url}>
+            <span>Previous</span>
+            <strong>{previous.title}</strong>
+          </a>
+        )}
+
+        {next && (
+          <a class="docs-pager-link" href={next.url}>
+            <span>Next</span>
+            <strong>{next.title}</strong>
+          </a>
+        )}
+      </nav>
+    )}
+  </article>
+</DocsLayout>

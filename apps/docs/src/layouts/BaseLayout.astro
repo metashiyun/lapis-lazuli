@@ -4,11 +4,13 @@ import "../styles/global.css";
 interface Props {
   title?: string;
   description?: string;
+  pageClass?: string;
 }
 
 const {
   title = "Lapis Lazuli",
-  description = "Zero-Java authoring for lightweight Minecraft server plugins."
+  description = "Zero-Java authoring for lightweight Minecraft server plugins.",
+  pageClass = ""
 } = Astro.props;
 ---
 
@@ -21,7 +23,7 @@ const {
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
   </head>
-  <body>
+  <body class={pageClass}>
     <slot />
   </body>
 </html>
