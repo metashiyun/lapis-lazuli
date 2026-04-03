@@ -133,6 +133,26 @@ class RawStorage:
         self.files = RawFiles()
 
 
+class RawHttpResponse:
+    def __init__(self, url: str, status: int, headers: dict[str, str], body: str) -> None:
+        self.url = url
+        self.status = status
+        self.ok = 200 <= status <= 299
+        self.headers = headers
+        self.body = body
+
+
+class RawHttp:
+    def fetch(self, spec):
+        self.last_request = spec
+        return RawHttpResponse(
+            url=spec["url"],
+            status=201,
+            headers={"content-type": "application/json"},
+            body='{"ok": true}',
+        )
+
+
 class RawUnsafeEvents:
     def onJava(self, event_class_name, handler):
         self.last_handler = (event_class_name, handler)
@@ -178,6 +198,7 @@ class RawContext:
         self.bossBars = RawNoop()
         self.scoreboards = RawNoop()
         self.storage = RawStorage()
+        self.http = RawHttp()
         self.config = RawStore()
         self.unsafe = RawUnsafe()
 
@@ -214,6 +235,30 @@ class PluginTests(unittest.TestCase):
         sender = RawSender()
         registration["execute"](RawCommandContext(sender))
         self.assertEqual(["Hello from Python."], sender.messages)
+
+    def test_http_service_wraps_requests_pythonically(self) -> None:
+        raw_context = RawContext()
+        context = PluginContext(raw_context)
+
+        response = context.http.post(
+            "https://example.test/items",
+            headers={"content-type": "application/json"},
+            body='{"name":"lapis"}',
+        )
+
+        self.assertEqual(
+            {
+                "url": "https://example.test/items",
+                "method": "POST",
+                "headers": {"content-type": "application/json"},
+                "body": '{"name":"lapis"}',
+            },
+            raw_context.http.last_request,
+        )
+        self.assertEqual(201, response.status)
+        self.assertTrue(response.ok)
+        self.assertEqual("application/json", response.headers["content-type"])
+        self.assertEqual({"ok": True}, response.json())
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 from ._plugin import Plugin, define_plugin
-from ._runtime import GuestProxy, Location, PluginContext, TitleOptions, wrap
+from ._runtime import GuestProxy, HttpResponse, Location, PluginContext, TitleOptions, wrap
 
 __all__ = [
     "GuestProxy",
+    "HttpResponse",
     "Location",
     "Plugin",
     "PluginContext",

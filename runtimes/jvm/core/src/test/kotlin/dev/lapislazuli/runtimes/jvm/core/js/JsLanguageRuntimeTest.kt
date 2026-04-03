@@ -1,5 +1,6 @@
 package dev.lapislazuli.runtimes.jvm.core.js
 
+import com.sun.net.httpserver.HttpServer
 import dev.lapislazuli.runtimes.jvm.core.bundle.BundleManifest
 import dev.lapislazuli.runtimes.jvm.core.bundle.ScriptBundle
 import dev.lapislazuli.runtimes.jvm.core.host.Callback
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -247,5 +250,69 @@ class JsLanguageRuntimeTest {
 
         plugin.close()
         assertTrue(hostServices.logMessages.contains("disabled"))
+    }
+
+    @Test
+    fun fetchesHttpThroughPromiseBasedJsApi() {
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/echo") { exchange ->
+            val requestBody = exchange.requestBody.readAllBytes().toString(StandardCharsets.UTF_8)
+            val responseBody = "echo:${exchange.requestHeaders.getFirst("x-lapis")}:$requestBody"
+            val responseBytes = responseBody.toByteArray(StandardCharsets.UTF_8)
+            exchange.responseHeaders.add("Content-Type", "text/plain")
+            exchange.sendResponseHeaders(201, responseBytes.size.toLong())
+            exchange.responseBody.use { it.write(responseBytes) }
+        }
+        server.start()
+
+        try {
+            val bundleDir = tempDir.resolve("hello-http")
+            Files.createDirectories(bundleDir)
+            Files.writeString(
+                bundleDir.resolve("main.js"),
+                """
+                    module.exports = {
+                      default: {
+                        name: "Hello Http",
+                        onEnable(context) {
+                          context.http.fetch("${'$'}{arguments[0]}", {
+                            method: "POST",
+                            headers: {
+                              "x-lapis": "js",
+                            },
+                            body: "ping",
+                          }).then((response) => {
+                            context.app.log.info(
+                              "http:" + response.status + ":" + response.ok + ":" + response.body,
+                            );
+                          });
+                        },
+                      },
+                    };
+                """.trimIndent().replace("\${arguments[0]}", "http://127.0.0.1:${server.address.port}/echo"),
+            )
+
+            val bundle = ScriptBundle(
+                bundleDirectory = bundleDir,
+                manifestPath = bundleDir.resolve("lapis-plugin.json"),
+                mainFile = bundleDir.resolve("main.js"),
+                manifest = BundleManifest(
+                    id = "hello-http",
+                    name = "Hello Http",
+                    version = "1.0.0",
+                    engine = "js",
+                    main = "main.js",
+                    apiVersion = "1.0",
+                ),
+            )
+            val hostServices = FakeHostServices(tempDir.resolve("data-http"))
+            val plugin: LoadedPlugin = JsLanguageRuntime().load(bundle, hostServices)
+
+            plugin.enable()
+
+            assertTrue(hostServices.logMessages.contains("http:201:true:echo:js:ping"))
+        } finally {
+            server.stop(0)
+        }
     }
 }

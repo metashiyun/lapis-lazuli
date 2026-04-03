@@ -983,19 +983,9 @@ class JsBridgeFactory {
                         parseRecipeIngredient(
                             ingredientsValue.getArrayElement(elementIndex.toLong()),
                             "$name.ingredients[$elementIndex]",
+                        )
+                    },
                 )
-            },
-        )
-
-    private fun httpResponseObject(response: HttpResponsePayload): Map<String, Any?> =
-        mapOf(
-            "url" to response.url,
-            "status" to response.status,
-            "ok" to response.ok,
-            "headers" to response.headers,
-            "body" to response.body,
-            "text" to executable { response.body },
-        )
             }
             else -> error("Unsupported recipe kind \"$kind\".")
         }
@@ -1007,6 +997,16 @@ class JsBridgeFactory {
             value.hasMembers() || value.hasHashEntries() -> HostExactItemIngredient(parseItemSpec(value, name))
             else -> error("Expected recipe ingredient \"$name\" to be a material string or item spec.")
         }
+
+    private fun httpResponseObject(response: HttpResponsePayload): Map<String, Any?> =
+        mapOf(
+            "url" to response.url,
+            "status" to response.status,
+            "ok" to response.ok,
+            "headers" to response.headers,
+            "body" to response.body,
+            "text" to executable { response.body },
+        )
 
     private fun parseHttpRequest(arguments: Array<out Value>): HttpRequestSpec =
         when {

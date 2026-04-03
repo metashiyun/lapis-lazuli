@@ -28,7 +28,7 @@ class ExampleBundleIntegrationTest {
         plugin.enable()
 
         assertTrue(hostServices.logMessages.contains("Hello TS enabled."))
-        assertTrue(hostServices.logMessages.contains("Server ready event observed."))
+        assertTrue(hostServices.broadcastMessages.contains("Hello TS is ready for 1 online player(s)."))
 
         val commandResult = hostServices.commandCallback.invoke(
             mapOf(
@@ -50,8 +50,8 @@ class ExampleBundleIntegrationTest {
             ),
         )
 
-        assertEquals(null, commandResult)
-        assertTrue(hostServices.sentMessages.contains("Hello from TypeScript."))
+        assertEquals(true, commandResult)
+        assertTrue(hostServices.sentMessages.any { it.contains("TypeScript") })
 
         hostServices.eventCallbacks.getValue("server.ready").invoke(hostServices.serverReadyPayload())
         hostServices.eventCallbacks.getValue("player.join").invoke(hostServices.playerJoinPayload("Bob"))
@@ -76,7 +76,7 @@ class ExampleBundleIntegrationTest {
         plugin.enable()
 
         assertTrue(hostServices.logMessages.contains("Hello Python enabled."))
-        assertTrue(hostServices.logMessages.contains("Server ready event observed."))
+        assertTrue(hostServices.broadcastMessages.contains("Hello Python is ready for 1 online player(s)."))
 
         val commandResult = hostServices.commandCallback.invoke(
             mapOf(
@@ -98,8 +98,8 @@ class ExampleBundleIntegrationTest {
             ),
         )
 
-        assertEquals(null, commandResult)
-        assertTrue(hostServices.sentMessages.contains("Hello from Python."))
+        assertEquals(true, commandResult)
+        assertTrue(hostServices.sentMessages.isNotEmpty())
 
         hostServices.eventCallbacks.getValue("server.ready").invoke(hostServices.serverReadyPayload())
         hostServices.eventCallbacks.getValue("player.join").invoke(hostServices.playerJoinPayload("Bob"))

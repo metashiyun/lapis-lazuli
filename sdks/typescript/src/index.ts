@@ -475,6 +475,33 @@ export interface StorageService {
   files: FileStore;
 }
 
+export interface HttpRequestInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface HttpRequest {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface HttpResponse {
+  url: string;
+  status: number;
+  ok: boolean;
+  headers: Record<string, string>;
+  body: string;
+  text(): string;
+}
+
+export interface HttpService {
+  fetch(url: string, init?: HttpRequestInit): Promise<HttpResponse>;
+  fetch(request: HttpRequest): Promise<HttpResponse>;
+}
+
 export interface UnsafeBridge {
   events: {
     onJava<T = unknown>(
@@ -521,6 +548,7 @@ export interface PluginContext {
   bossBars: BossBarsService;
   scoreboards: ScoreboardsService;
   storage: StorageService;
+  http: HttpService;
   config: KeyValueStore;
   unsafe: UnsafeBridge;
 }

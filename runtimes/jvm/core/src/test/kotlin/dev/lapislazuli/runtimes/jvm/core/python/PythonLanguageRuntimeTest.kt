@@ -1,5 +1,6 @@
 package dev.lapislazuli.runtimes.jvm.core.python
 
+import com.sun.net.httpserver.HttpServer
 import dev.lapislazuli.runtimes.jvm.core.bundle.BundleManifest
 import dev.lapislazuli.runtimes.jvm.core.bundle.ScriptBundle
 import dev.lapislazuli.runtimes.jvm.core.runtime.LoadedPlugin
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -151,5 +154,68 @@ class PythonLanguageRuntimeTest {
 
         assertTrue(error.message!!.contains("Failed to parse Python bundle"))
         assertTrue(error.message!!.contains("main.py"))
+    }
+
+    @Test
+    fun fetchesHttpThroughPythonSdk() {
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/echo") { exchange ->
+            val requestBody = exchange.requestBody.readAllBytes().toString(StandardCharsets.UTF_8)
+            val responseBody = """{"echo":"${exchange.requestHeaders.getFirst("x-lapis")}:$requestBody"}"""
+            val responseBytes = responseBody.toByteArray(StandardCharsets.UTF_8)
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(200, responseBytes.size.toLong())
+            exchange.responseBody.use { it.write(responseBytes) }
+        }
+        server.start()
+
+        try {
+            val bundleDir = tempDir.resolve("python-http")
+            val sourceDir = bundleDir.resolve("src")
+            Files.createDirectories(sourceDir)
+            Files.writeString(
+                sourceDir.resolve("main.py"),
+                """
+                    import json
+
+                    name = "Python Http"
+
+                    def on_enable(context):
+                        response = context.http.fetch({
+                            "url": "${'$'}{url}",
+                            "method": "POST",
+                            "headers": {"x-lapis": "python"},
+                            "body": "pong",
+                        })
+                        payload = json.loads(response.body)
+                        context.app.log.info(f"http:{response.status}:{response.ok}:{payload['echo']}")
+                """.trimIndent().replace("\${url}", "http://127.0.0.1:${server.address.port}/echo"),
+            )
+
+            val bundle = ScriptBundle(
+                bundleDirectory = bundleDir,
+                manifestPath = bundleDir.resolve("lapis-plugin.json"),
+                mainFile = sourceDir.resolve("main.py"),
+                manifest = BundleManifest(
+                    id = "python-http",
+                    name = "Python Http",
+                    version = "1.0.0",
+                    engine = "python",
+                    main = "src/main.py",
+                    apiVersion = "1.0",
+                ),
+            )
+            val hostServices = FakeHostServices(tempDir.resolve("data-http"))
+            val plugin: LoadedPlugin = PythonLanguageRuntime().load(bundle, hostServices)
+
+            plugin.enable()
+
+            assertTrue(
+                hostServices.logMessages.any { it.contains("http:200") && it.contains("pong") },
+                hostServices.logMessages.toString(),
+            )
+        } finally {
+            server.stop(0)
+        }
     }
 }

@@ -44,6 +44,7 @@ The public SDK now centers on:
 - `bossBars`
 - `scoreboards`
 - `storage`
+- `http`
 - `config`
 - `unsafe`
 

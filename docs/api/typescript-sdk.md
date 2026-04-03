@@ -43,6 +43,7 @@ interface PluginContext {
   items: ItemFactory;
   inventory: InventoryDirectory;
   chat: ChatService;
+  http: HttpService;
   storage: StorageService;
   config: KeyValueStore;
   unsafe: UnsafeBridge;
@@ -83,6 +84,23 @@ The SDK uses focused handles such as:
 
 These provide a curated subset of common operations. They are not intended to be direct
 wrappers around the full Java object model.
+
+## HTTP
+
+TypeScript plugins can make HTTP requests through `context.http.fetch(...)`.
+
+```ts
+const response = await context.http.fetch("https://example.com/api", {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({ hello: "lapis" }),
+});
+
+context.app.log.info(`status=${response.status}`);
+context.app.log.info(response.body);
+```
 
 ## Escape Hatch
 

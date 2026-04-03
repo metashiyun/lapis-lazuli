@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, is_dataclass
+import json
 import inspect
 from typing import Any
 
@@ -560,6 +561,81 @@ class StorageService:
         self.files = FileStore(getattr(raw, "files"))
 
 
+@dataclass(slots=True)
+class HttpResponse:
+    url: str
+    status: int
+    ok: bool
+    headers: dict[str, str]
+    body: str
+
+    @classmethod
+    def from_raw(cls, raw: Any) -> "HttpResponse":
+        raw_headers = wrap(getattr(raw, "headers"))
+        return cls(
+            url=getattr(raw, "url"),
+            status=getattr(raw, "status"),
+            ok=bool(getattr(raw, "ok")),
+            headers={key: raw_headers[key] for key in raw_headers},
+            body=getattr(raw, "body"),
+        )
+
+    @property
+    def text(self) -> str:
+        return self.body
+
+    def json(self) -> Any:
+        return json.loads(self.body)
+
+
+class HttpService(GuestProxy):
+    def fetch(
+        self,
+        url: str | Mapping[str, Any],
+        method: str | None = None,
+        *,
+        headers: Mapping[str, str] | None = None,
+        body: str | None = None,
+    ) -> HttpResponse:
+        if isinstance(url, Mapping):
+            if method is not None or headers is not None or body is not None:
+                raise TypeError("fetch() accepts either a mapping or explicit arguments, not both.")
+            spec = dict(url)
+        else:
+            spec = {
+                "url": url,
+                "method": method,
+                "headers": headers,
+                "body": body,
+            }
+
+        return HttpResponse.from_raw(getattr(self.raw, "fetch")(_unwrap(spec)))
+
+    def get(self, url: str, *, headers: Mapping[str, str] | None = None) -> HttpResponse:
+        return self.fetch(url, headers=headers)
+
+    def post(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        body: str | None = None,
+    ) -> HttpResponse:
+        return self.fetch(url, method="POST", headers=headers, body=body)
+
+    def put(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        body: str | None = None,
+    ) -> HttpResponse:
+        return self.fetch(url, method="PUT", headers=headers, body=body)
+
+    def delete(self, url: str, *, headers: Mapping[str, str] | None = None) -> HttpResponse:
+        return self.fetch(url, method="DELETE", headers=headers)
+
+
 class UnsafeEvents(GuestProxy):
     def on_java(self, event_class_name: str, handler: Callable[..., Any]) -> HookHandle:
         return HookHandle(getattr(self.raw, "onJava")(event_class_name, _wrap_callback(handler, payload_wrapper=wrap)))
@@ -607,6 +683,7 @@ class PluginContext:
         "effects",
         "entities",
         "events",
+        "http",
         "inventory",
         "items",
         "players",
@@ -636,5 +713,6 @@ class PluginContext:
         self.boss_bars = BossBarsService(getattr(raw, "bossBars"))
         self.scoreboards = ScoreboardsService(getattr(raw, "scoreboards"))
         self.storage = StorageService(getattr(raw, "storage"))
+        self.http = HttpService(getattr(raw, "http"))
         self.config = KeyValueStore(getattr(raw, "config"))
         self.unsafe = UnsafeBridge(getattr(raw, "unsafe"))

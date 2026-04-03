@@ -19,6 +19,7 @@ The public model is service-oriented:
 - `bossBars`
 - `scoreboards`
 - `storage`
+- `http`
 - `config`
 - `unsafe`
 
@@ -132,6 +133,28 @@ Two persistence paths are exposed:
 - `config`: bundle config values backed by `config.yml`
 - `storage.plugin`: bundle-scoped persistent key/value storage
 - `storage.files`: bundle-scoped file storage rooted at `data/`
+
+## `http`
+
+HTTP requests are exposed through `http.fetch(...)`.
+
+Request inputs use plain objects:
+
+- `url`
+- optional `method`
+- optional `headers`
+- optional `body`
+
+Responses expose:
+
+- `url`
+- `status`
+- `ok`
+- `headers`
+- `body`
+- `text()`
+
+In JavaScript, `http.fetch(...)` returns a promise.
 
 ## `unsafe`
 

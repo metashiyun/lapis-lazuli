@@ -47,6 +47,29 @@ def on_enable(context):
 - Keep DTOs plain and lightweight; `Location` and `TitleOptions` are dataclasses
 - Keep raw backend access under `context.unsafe`
 
+## HTTP
+
+The Python SDK exposes HTTP through `context.http`.
+
+```py
+response = context.http.post(
+    "https://example.com/api",
+    headers={"content-type": "application/json"},
+    body='{"hello":"lapis"}',
+)
+
+context.app.log.info(f"status={response.status}")
+context.app.log.info(response.text)
+```
+
+Available helpers:
+
+- `context.http.fetch(...)`
+- `context.http.get(...)`
+- `context.http.post(...)`
+- `context.http.put(...)`
+- `context.http.delete(...)`
+
 ## Packaging And Bundling
 
 The CLI scaffolds Python projects with `pyproject.toml` metadata and stages
