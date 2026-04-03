@@ -1,85 +1,74 @@
 # Authoring And Installation Guide
 
-This guide covers the current repo-based workflow for:
+This guide covers the current supported workflow for building and installing a Lapis
+Lazuli plugin.
 
-- developing a new plugin in TypeScript
-- bundling it into a deployable folder
-- installing the Lapis Lazuli runtime plugin into a real Paper server
-- installing the bundled script plugin into that server
+The target server in this document is Paper.
 
-## 1. Prepare The Repository
+## Prerequisites
 
-From the Lapis Lazuli repository:
+From the repository root:
 
 ```sh
 bun install
 ./gradlew :runtime-bukkit:shadowJar
 ```
 
-This gives you:
+This prepares:
 
-- the local TypeScript SDK and CLI
-- the runtime plugin jar at `runtime-bukkit/build/libs/runtime-bukkit.jar`
+- the local SDK and CLI workspace
+- the runtime adapter jar at `runtime-bukkit/build/libs/runtime-bukkit.jar`
 
-## 2. Create A New TypeScript Plugin
-
-Use the CLI from this repository:
+## 1. Create A Plugin Project
 
 ```sh
 bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
 ```
 
-That creates:
+The scaffold contains:
 
-- `/absolute/path/to/my-plugin/lapis-plugin.json`
-- `/absolute/path/to/my-plugin/src/index.ts`
-- `/absolute/path/to/my-plugin/package.json`
+- `lapis-plugin.json`
+- `src/index.ts`
+- `package.json`
+- `.gitignore`
 
-## 3. Develop The Plugin
+## 2. Implement The Plugin
 
 Edit:
 
 - `/absolute/path/to/my-plugin/src/index.ts`
 - `/absolute/path/to/my-plugin/lapis-plugin.json`
 
-The entrypoint should export `definePlugin(...)` from `@lapis-lazuli/sdk`.
-
-Example:
+Minimal example:
 
 ```ts
 import { definePlugin } from "@lapis-lazuli/sdk";
 
 export default definePlugin({
   name: "My Plugin",
+  version: "0.1.0",
   onEnable(context) {
     context.logger.info("My Plugin enabled.");
   },
 });
 ```
 
-## 4. Validate And Bundle The Plugin
+For the available runtime surface, see [api/runtime-host-api.md](api/runtime-host-api.md)
+and [api/typescript-sdk.md](api/typescript-sdk.md).
 
-Run:
+## 3. Validate And Bundle
 
 ```sh
 bun packages/cli/src/index.ts validate /absolute/path/to/my-plugin
 bun packages/cli/src/index.ts bundle /absolute/path/to/my-plugin
 ```
 
-That produces:
+This produces a deployable bundle directory:
 
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/lapis-plugin.json`
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/main.js`
 
-This folder is the deployable script-plugin bundle.
-
-## 5. Install The Runtime Plugin Into Paper
-
-Build the runtime plugin:
-
-```sh
-./gradlew :runtime-bukkit:shadowJar
-```
+## 4. Install The Runtime Adapter
 
 Copy:
 
@@ -89,15 +78,15 @@ into:
 
 - `<server>/plugins/`
 
-Then start the server once. This allows Paper to load the runtime plugin and create the runtime data directory:
+Start the server once so the runtime can create:
 
 - `<server>/plugins/LapisLazuli/`
 
-Stop the server after that first boot.
+Then stop the server.
 
-## 6. Install The Bundled TypeScript Plugin
+## 5. Install The Script Bundle
 
-Copy the bundled plugin directory:
+Copy:
 
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/`
 
@@ -105,37 +94,36 @@ into:
 
 - `<server>/plugins/LapisLazuli/bundles/<plugin-id>/`
 
-After copying, the server should contain:
+The deployed structure should look like:
 
-- `<server>/plugins/runtime-bukkit.jar`
-- `<server>/plugins/LapisLazuli/bundles/<plugin-id>/lapis-plugin.json`
-- `<server>/plugins/LapisLazuli/bundles/<plugin-id>/main.js`
+```text
+<server>/plugins/runtime-bukkit.jar
+<server>/plugins/LapisLazuli/bundles/<plugin-id>/lapis-plugin.json
+<server>/plugins/LapisLazuli/bundles/<plugin-id>/main.js
+```
 
-## 7. Start The Server
+## 6. Start Paper
 
-Start Paper again. On startup, the runtime plugin will:
+On startup the runtime:
 
-- scan `plugins/LapisLazuli/bundles/`
-- parse each `lapis-plugin.json`
-- load each `main.js`
-- call the plugin `onEnable` hook
+- scans `plugins/LapisLazuli/bundles/`
+- parses each `lapis-plugin.json`
+- loads each bundle entrypoint
+- invokes `onEnable`
 
-If the bundle loads successfully, you should see the script plugin’s log output in the server console.
+If the bundle loads successfully, the script plugin logs will appear in the Paper
+console.
 
-## 8. Updating A Plugin
+## 7. Update A Plugin
 
-To update a script plugin:
+To update a deployed plugin:
 
-1. Edit the TypeScript source.
+1. Edit the source project.
 2. Run `bundle` again.
-3. Replace the bundle folder under `plugins/LapisLazuli/bundles/<plugin-id>/`.
-4. Wait for Lapis Lazuli to detect the bundle change and hot reload it.
+3. Replace the deployed bundle directory.
+4. Wait for the runtime to hot reload the bundle set.
 
-By default the Paper runtime polls the `bundles/` directory every 20 ticks and reloads script bundles automatically when tracked bundle files change.
-
-The runtime ignores bundle-local `config.yml` and `data/` paths while watching for changes, so plugin state saves do not trigger reload loops.
-
-You can configure or disable polling in `plugins/LapisLazuli/config.yml`:
+Default hot reload configuration:
 
 ```yaml
 hotReload:
@@ -143,12 +131,32 @@ hotReload:
   pollIntervalTicks: 20
 ```
 
-## 9. Real-Server Validation
+The runtime ignores bundle-local `config.yml` and `data/` paths during file watching so
+plugin persistence does not trigger reload loops.
 
-To verify the full install flow on a real Paper server jar:
+## 8. Recommended Development Model
+
+Use the stable host API for common plugin behavior:
+
+- logging
+- simple commands
+- the documented event keys
+- scheduler tasks
+- config and data storage
+
+Use `context.javaInterop.type(...)` only when you need lower-level server APIs that are
+not yet wrapped by Lapis Lazuli.
+
+## 9. Validate On A Real Server
 
 ```sh
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ```
 
-That smoke test builds the runtime plugin, bundles the example script plugin, boots a real Paper server, installs both artifacts, verifies the initial command flow, rewrites the deployed bundle to trigger hot reload, verifies the updated command output, and then shuts the server down cleanly.
+This smoke test:
+
+- builds the runtime jar
+- bundles the example plugin
+- boots a real Paper server
+- installs the runtime and bundle
+- verifies plugin enable logging, event wiring, command execution, hot reload, and shutdown

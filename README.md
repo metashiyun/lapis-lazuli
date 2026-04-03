@@ -1,132 +1,103 @@
 # Lapis Lazuli
 
-Lapis Lazuli is a zero-Java authoring platform for lightweight Minecraft server plugins.
-Plugin authors write TypeScript or JavaScript only. The project ships:
+Lapis Lazuli is a script-plugin platform for Minecraft servers. Plugin authors write
+TypeScript or JavaScript, bundle that code into a deployable directory, and load it
+through a JVM runtime plugin.
 
-- a JVM runtime plugin for Paper/Bukkit servers
-- `@lapis-lazuli/sdk` for typed plugin authoring
-- `@lapis-lazuli/cli` for scaffolding, validating, building, and bundling script plugins
+The repository currently ships:
 
-## Repository Layout
+- `runtime-core`: bundle loading, lifecycle management, and the GraalJS runtime
+- `runtime-bukkit`: the Paper-focused Minecraft server adapter
+- `@lapis-lazuli/sdk`: the TypeScript authoring API
+- `@lapis-lazuli/cli`: project scaffolding, validation, build, and bundle commands
+- `examples/hello-ts`: the reference example plugin
 
-- `runtime-core`: engine-agnostic bundle loading, lifecycle management, and the GraalJS runtime
-- `runtime-bukkit`: Paper/Bukkit plugin adapter and host bridge implementation
-- `packages/sdk`: TypeScript-first plugin authoring API
-- `packages/cli`: project scaffolding and bundling CLI
-- `examples/hello-ts`: canonical zero-Java example plugin
+## Status Snapshot
 
-## Local Commands
+| Area | Status | Notes |
+| --- | --- | --- |
+| Runtime language engine | Supported | JavaScript only, via GraalJS |
+| TypeScript authoring | Supported | TypeScript compiles to the JavaScript runtime format |
+| JavaScript authoring | Supported | Plain JS bundles are valid |
+| Python SDK | Not implemented | No Python package or Python runtime exists in this repo |
+| Paper server target | Supported | Compiled and smoke-tested against Paper 1.21.x |
+| Bukkit / Spigot server target | Not a supported target | The adapter is Paper-biased and not validated on Bukkit or Spigot |
+| Stable typed server API | Limited | Commands, 3 events, scheduler, config, data directory, logger, Java interop |
+| Full Bukkit / Paper API via SDK | Not supported | Use Java interop for advanced access, but that is an escape hatch rather than a stable SDK contract |
+
+## What "Supports Bukkit / Spigot / Paper API" Means Here
+
+Lapis Lazuli does not currently expose the full Bukkit, Spigot, or Paper API as a
+curated typed SDK.
+
+What it does provide is:
+
+- a small documented host API through `@lapis-lazuli/sdk`
+- unrestricted Java interop from JS/TS scripts through `context.javaInterop.type(...)`
+
+That means a script can call deeper JVM APIs such as `org.bukkit.Bukkit` or Paper
+classes directly, but Lapis Lazuli does not currently type, wrap, document, or
+cross-version test that full surface for you.
+
+## Documentation
+
+Start with the documentation index:
+
+- [docs/README.md](docs/README.md)
+
+Key reference documents:
+
+- [docs/compatibility.md](docs/compatibility.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/api/runtime-host-api.md](docs/api/runtime-host-api.md)
+- [docs/api/typescript-sdk.md](docs/api/typescript-sdk.md)
+- [docs/cli.md](docs/cli.md)
+- [docs/bundle-format.md](docs/bundle-format.md)
+- [docs/authoring.md](docs/authoring.md)
+- [docs/testing.md](docs/testing.md)
+- [docs/python-sdk.md](docs/python-sdk.md)
+
+## Quick Start
 
 ```sh
 bun install
-bun test
-bun packages/cli/src/index.ts create /path/to/my-plugin "My Plugin"
-bun packages/cli/src/index.ts validate examples/hello-ts
-bun packages/cli/src/index.ts bundle examples/hello-ts
-PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
-./gradlew :runtime-core:test :runtime-bukkit:shadowJar
-```
-
-The TypeScript workspace is Bun-based and uses only built-in Bun capabilities. The JVM runtime is Gradle-based and targets Java 21.
-
-## Bundle Format
-
-Each script plugin bundle contains:
-
-- `lapis-plugin.json`
-- `main.js`
-
-The runtime plugin discovers bundles from its data directory under `bundles/<bundle-id>/`.
-
-Example manifest:
-
-```json
-{
-  "id": "hello-ts",
-  "name": "Hello TS",
-  "version": "0.1.0",
-  "engine": "js",
-  "main": "./src/index.ts",
-  "apiVersion": "1.0"
-}
-```
-
-The CLI rewrites `main` to `main.js` in the packaged bundle.
-
-## Develop And Install A Plugin
-
-The current workflow is source-first from this repository:
-
-1. Create a new TypeScript plugin project:
-
-```sh
+./gradlew :runtime-bukkit:shadowJar
 bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
-```
-
-2. Edit `/absolute/path/to/my-plugin/src/index.ts` and `/absolute/path/to/my-plugin/lapis-plugin.json`.
-
-3. Validate and bundle the plugin:
-
-```sh
 bun packages/cli/src/index.ts validate /absolute/path/to/my-plugin
 bun packages/cli/src/index.ts bundle /absolute/path/to/my-plugin
 ```
 
-4. Install the runtime plugin on the Paper server:
+Deploy the generated bundle directory from `dist/<plugin-id>/` into:
 
-```sh
-./gradlew :runtime-bukkit:shadowJar
+```text
+<server>/plugins/LapisLazuli/bundles/<plugin-id>/
 ```
 
-Then copy:
+Deploy the runtime adapter jar:
 
-- `runtime-bukkit/build/libs/runtime-bukkit.jar` into `<server>/plugins/`
-
-5. Start the server once so Paper loads the runtime plugin and creates `plugins/LapisLazuli/`, then stop the server.
-
-6. Install the bundled TypeScript plugin by copying:
-
-- `/absolute/path/to/my-plugin/dist/<plugin-id>/`
+```text
+runtime-bukkit/build/libs/runtime-bukkit.jar
+```
 
 into:
 
-- `<server>/plugins/LapisLazuli/bundles/<plugin-id>/`
-
-7. Start the server again. Lapis Lazuli will discover the bundle and load it on startup.
-
-Bundle hot reload is now enabled by default on Paper. When files under `plugins/LapisLazuli/bundles/<plugin-id>/` change, the runtime will unload the current script plugins and reload the bundle set automatically without restarting the server.
-
-The runtime-owned `config.yml` and `data/` paths inside each bundle are ignored by hot reload so plugin saves do not trigger reload loops.
-
-You can tune this behavior in `plugins/LapisLazuli/config.yml`:
-
-```yaml
-hotReload:
-  enabled: true
-  pollIntervalTicks: 20
+```text
+<server>/plugins/
 ```
 
-The supported update flow is now build bundle, replace the bundle folder, and wait for the runtime to reload it.
+The tested server target is Paper.
 
-For a fuller walkthrough, see [docs/authoring.md](docs/authoring.md).
-
-## Testing Stack
-
-The project now uses three verification layers:
-
-- Bun tests for SDK and CLI behavior.
-- JVM tests in `runtime-core`, including a smoke test that bundles the real example plugin and loads it through `JsLanguageRuntime`.
-- A real Paper server smoke test via `scripts/paper-smoke.sh`, which:
-  - builds the runtime plugin jar
-  - bundles the example script plugin
-  - boots a real Paper server
-  - installs the runtime plugin and bundle
-  - verifies plugin enable logging, server load event wiring, command execution, hot reload, and clean shutdown
-
-To run the real-server smoke test you must provide a Paper server jar:
+## Local Development Commands
 
 ```sh
+bun install
+bun test
+./gradlew :runtime-core:test :runtime-bukkit:compileKotlin
+./gradlew :runtime-bukkit:shadowJar
+bun packages/cli/src/index.ts validate examples/hello-ts
+bun packages/cli/src/index.ts bundle examples/hello-ts
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ```
 
-This should be treated as a release gate for runtime/plugin integration and should also be added to CI once a Paper jar provisioning strategy is chosen.
+The TypeScript workspace is Bun-based. The JVM runtime is Gradle-based and targets
+Java 21.
