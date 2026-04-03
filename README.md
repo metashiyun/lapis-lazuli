@@ -1,4 +1,16 @@
-# Lapis Lazuli
+<h1 align="center">
+  <img src="apps/docs/public/favicon.svg" alt="Lapis Lazuli icon" width="40" height="40"><br>
+  Lapis Lazuli
+</h1>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/lapis-lazuli">
+    <img src="https://img.shields.io/npm/v/lapis-lazuli?logo=npm&label=npm" alt="npm version">
+  </a>
+  <a href="https://pypi.org/project/lapis-lazuli/">
+    <img src="https://img.shields.io/pypi/v/lapis-lazuli?logo=pypi&label=PyPI" alt="PyPI version">
+  </a>
+</p>
 
 Lapis Lazuli is a Minecraft plugin SDK for TypeScript, JavaScript, and Python.
 You write plugins against the Lapis SDK, bundle them, and run them through the
