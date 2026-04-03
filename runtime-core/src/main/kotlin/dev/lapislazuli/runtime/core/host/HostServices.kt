@@ -59,6 +59,52 @@ interface HostServices : AutoCloseable {
     fun createInventory(id: String?, title: String, size: Int): HostInventory
 
     @Throws(Exception::class)
+    fun playSound(location: HostLocation, sound: String, volume: Float, pitch: Float)
+
+    @Throws(Exception::class)
+    fun playSound(player: HostPlayer, sound: String, volume: Float, pitch: Float)
+
+    @Throws(Exception::class)
+    fun spawnParticle(
+        location: HostLocation,
+        particle: String,
+        count: Int,
+        offsetX: Double,
+        offsetY: Double,
+        offsetZ: Double,
+        extra: Double,
+        players: List<HostPlayer>,
+    )
+
+    @Throws(Exception::class)
+    fun applyPotionEffect(
+        player: HostPlayer,
+        effect: String,
+        durationTicks: Int,
+        amplifier: Int,
+        ambient: Boolean,
+        particles: Boolean,
+        icon: Boolean,
+    ): Boolean
+
+    @Throws(Exception::class)
+    fun clearPotionEffect(player: HostPlayer, effect: String?)
+
+    @Throws(Exception::class)
+    fun registerRecipe(spec: HostRecipeSpec): Registration
+
+    @Throws(Exception::class)
+    fun createBossBar(
+        id: String?,
+        title: String,
+        color: String,
+        style: String,
+    ): HostBossBar
+
+    @Throws(Exception::class)
+    fun createScoreboard(id: String?, title: String): HostScoreboard
+
+    @Throws(Exception::class)
     fun javaType(className: String): Class<*>
 
     fun serverHandle(): Any

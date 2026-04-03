@@ -145,6 +145,91 @@ export interface ItemSpec {
   enchantments?: Record<string, number>;
 }
 
+export interface SoundSpec {
+  sound: string;
+  location?: Location;
+  player?: PlayerHandle;
+  volume?: number;
+  pitch?: number;
+}
+
+export interface ParticleSpec {
+  particle: string;
+  location: Location;
+  count?: number;
+  offsetX?: number;
+  offsetY?: number;
+  offsetZ?: number;
+  extra?: number;
+  players?: PlayerHandle[];
+}
+
+export interface PotionEffectSpec {
+  player: PlayerHandle;
+  effect: string;
+  durationTicks: number;
+  amplifier?: number;
+  ambient?: boolean;
+  particles?: boolean;
+  icon?: boolean;
+}
+
+export type RecipeIngredient = string | ItemSpec;
+
+export interface ShapedRecipeSpec {
+  kind: "shaped";
+  id: string;
+  result: ItemSpec;
+  shape: string[];
+  ingredients: Record<string, RecipeIngredient>;
+}
+
+export interface ShapelessRecipeSpec {
+  kind: "shapeless";
+  id: string;
+  result: ItemSpec;
+  ingredients: RecipeIngredient[];
+}
+
+export type RecipeSpec = ShapedRecipeSpec | ShapelessRecipeSpec;
+
+export interface RecipeHandle {
+  id: string;
+  unregister(): void;
+}
+
+export interface BossBarHandle {
+  id?: string | null;
+  title(): string;
+  setTitle(title: TextInput): void;
+  progress(): number;
+  setProgress(progress: number): void;
+  color(): string;
+  setColor(color: string): void;
+  style(): string;
+  setStyle(style: string): void;
+  players(): PlayerHandle[];
+  addPlayer(player: PlayerHandle): void;
+  removePlayer(player: PlayerHandle): void;
+  clearPlayers(): void;
+  delete(): void;
+  unsafe?: UnsafeHandle;
+}
+
+export interface ScoreboardHandle {
+  id?: string | null;
+  title(): string;
+  setTitle(title: TextInput): void;
+  setLine(score: number, text: TextInput): void;
+  removeLine(score: number): void;
+  clear(): void;
+  viewers(): PlayerHandle[];
+  show(player: PlayerHandle): void;
+  hide(player: PlayerHandle): void;
+  delete(): void;
+  unsafe?: UnsafeHandle;
+}
+
 export interface CancellableEvent {
   cancelled: boolean;
   cancel(): void;
@@ -360,6 +445,31 @@ export interface ChatService {
   broadcast(message: TextInput): number;
 }
 
+export interface EffectsService {
+  playSound(spec: SoundSpec): void;
+  spawnParticle(spec: ParticleSpec): void;
+  applyPotion(spec: PotionEffectSpec): boolean;
+  clearPotion(player: PlayerHandle, effect?: string): void;
+}
+
+export interface RecipesService {
+  register(spec: RecipeSpec): RecipeHandle;
+}
+
+export interface BossBarsService {
+  create(spec: {
+    id?: string;
+    title: TextInput;
+    color?: string;
+    style?: string;
+    progress?: number;
+  }): BossBarHandle;
+}
+
+export interface ScoreboardsService {
+  create(spec: { id?: string; title: TextInput }): ScoreboardHandle;
+}
+
 export interface StorageService {
   plugin: KeyValueStore;
   files: FileStore;
@@ -406,6 +516,10 @@ export interface PluginContext {
   items: ItemFactory;
   inventory: InventoryDirectory;
   chat: ChatService;
+  effects: EffectsService;
+  recipes: RecipesService;
+  bossBars: BossBarsService;
+  scoreboards: ScoreboardsService;
   storage: StorageService;
   config: KeyValueStore;
   unsafe: UnsafeBridge;

@@ -6,12 +6,20 @@ import dev.lapislazuli.runtime.core.host.Callback
 import dev.lapislazuli.runtime.core.host.ConfigStore
 import dev.lapislazuli.runtime.core.host.DataDirectory
 import dev.lapislazuli.runtime.core.host.HostBlock
+import dev.lapislazuli.runtime.core.host.HostBossBar
 import dev.lapislazuli.runtime.core.host.HostEntity
+import dev.lapislazuli.runtime.core.host.HostExactItemIngredient
 import dev.lapislazuli.runtime.core.host.HostInventory
 import dev.lapislazuli.runtime.core.host.HostItem
 import dev.lapislazuli.runtime.core.host.HostItemSpec
 import dev.lapislazuli.runtime.core.host.HostLocation
+import dev.lapislazuli.runtime.core.host.HostMaterialIngredient
 import dev.lapislazuli.runtime.core.host.HostPlayer
+import dev.lapislazuli.runtime.core.host.HostRecipeIngredient
+import dev.lapislazuli.runtime.core.host.HostRecipeSpec
+import dev.lapislazuli.runtime.core.host.HostScoreboard
+import dev.lapislazuli.runtime.core.host.HostShapedRecipeSpec
+import dev.lapislazuli.runtime.core.host.HostShapelessRecipeSpec
 import dev.lapislazuli.runtime.core.host.HostServices
 import dev.lapislazuli.runtime.core.host.HostWorld
 import dev.lapislazuli.runtime.core.host.KeyValueStore
@@ -19,11 +27,17 @@ import dev.lapislazuli.runtime.core.host.Registration
 import dev.lapislazuli.runtime.core.host.RuntimeLogger
 import dev.lapislazuli.runtime.core.host.TaskHandle
 import org.bukkit.Bukkit
+import org.bukkit.ChatColor
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
+import org.bukkit.Particle
+import org.bukkit.Sound
 import org.bukkit.World
 import org.bukkit.block.Block
+import org.bukkit.boss.BarColor
+import org.bukkit.boss.BarStyle
+import org.bukkit.boss.BossBar
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
@@ -40,11 +54,20 @@ import org.bukkit.event.Listener
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.RecipeChoice
+import org.bukkit.inventory.ShapedRecipe
+import org.bukkit.inventory.ShapelessRecipe
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataHolder
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.plugin.EventExecutor
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
+import org.bukkit.scoreboard.DisplaySlot
+import org.bukkit.scoreboard.Objective
+import org.bukkit.scoreboard.Scoreboard
+import org.bukkit.scoreboard.Team
 import java.io.File
 import java.lang.reflect.Field
 import java.nio.file.Files
@@ -66,6 +89,7 @@ internal class BukkitHostServices(
     private val dataDirectory: Path = bundle.bundleDirectory.resolve("data")
     private val registrations = ArrayDeque<AutoCloseable>()
     private val shutdownCallbacks = ArrayDeque<Callback>()
+    private var scoreboardSequence = 0
     private var configuration: YamlConfiguration
     private var storageConfiguration: YamlConfiguration
 
@@ -297,6 +321,105 @@ internal class BukkitHostServices(
         return wrapInventory(inventory)
     }
 
+    override fun playSound(location: HostLocation, sound: String, volume: Float, pitch: Float) {
+        val world = location.world?.let(plugin.server::getWorld) ?: error("Location requires a world.")
+        world.playSound(toBukkitLocation(location, world), resolveSound(sound), volume, pitch)
+    }
+
+    override fun playSound(player: HostPlayer, sound: String, volume: Float, pitch: Float) {
+        val bukkitPlayer = (player as BukkitPlayerHandle).player
+        bukkitPlayer.playSound(bukkitPlayer.location, resolveSound(sound), volume, pitch)
+    }
+
+    override fun spawnParticle(
+        location: HostLocation,
+        particle: String,
+        count: Int,
+        offsetX: Double,
+        offsetY: Double,
+        offsetZ: Double,
+        extra: Double,
+        players: List<HostPlayer>,
+    ) {
+        val world = location.world?.let(plugin.server::getWorld) ?: error("Location requires a world.")
+        val resolvedParticle = resolveParticle(particle)
+        val bukkitLocation = toBukkitLocation(location, world)
+        if (players.isEmpty()) {
+            world.spawnParticle(resolvedParticle, bukkitLocation, count, offsetX, offsetY, offsetZ, extra)
+            return
+        }
+
+        players
+            .map { it as BukkitPlayerHandle }
+            .forEach { handle ->
+                handle.player.spawnParticle(resolvedParticle, bukkitLocation, count, offsetX, offsetY, offsetZ, extra)
+            }
+    }
+
+    override fun applyPotionEffect(
+        player: HostPlayer,
+        effect: String,
+        durationTicks: Int,
+        amplifier: Int,
+        ambient: Boolean,
+        particles: Boolean,
+        icon: Boolean,
+    ): Boolean =
+        (player as BukkitPlayerHandle).player.addPotionEffect(
+            PotionEffect(
+                resolvePotionEffectType(effect),
+                durationTicks,
+                amplifier,
+                ambient,
+                particles,
+                icon,
+            ),
+        )
+
+    override fun clearPotionEffect(player: HostPlayer, effect: String?) {
+        val bukkitPlayer = (player as BukkitPlayerHandle).player
+        if (effect == null) {
+            bukkitPlayer.activePotionEffects
+                .map(PotionEffect::getType)
+                .forEach(bukkitPlayer::removePotionEffect)
+            return
+        }
+
+        bukkitPlayer.removePotionEffect(resolvePotionEffectType(effect))
+    }
+
+    override fun registerRecipe(spec: HostRecipeSpec): Registration {
+        val key = recipeKey(spec.id)
+        plugin.server.removeRecipe(key)
+
+        when (spec) {
+            is HostShapedRecipeSpec -> plugin.server.addRecipe(createShapedRecipe(key, spec))
+            is HostShapelessRecipeSpec -> plugin.server.addRecipe(createShapelessRecipe(key, spec))
+        }
+
+        val registration = Registration {
+            plugin.server.removeRecipe(key)
+        }
+        registrations.addFirst(registration)
+        return registration
+    }
+
+    override fun createBossBar(id: String?, title: String, color: String, style: String): HostBossBar =
+        BukkitBossBarHandle(
+            id = id,
+            bossBar = Bukkit.createBossBar(
+                title,
+                resolveBarColor(color),
+                resolveBarStyle(style),
+            ),
+        ).also(registrations::addFirst)
+
+    override fun createScoreboard(id: String?, title: String): HostScoreboard =
+        BukkitScoreboardHandle(
+            id = id,
+            titleText = title,
+        ).also(registrations::addFirst)
+
     override fun javaType(className: String): Class<*> =
         Class.forName(className, true, plugin.javaClass.classLoader)
 
@@ -421,8 +544,74 @@ internal class BukkitHostServices(
     private fun resolveEnchantment(key: String): Enchantment? =
         Enchantment.getByName(normalizeEnumKey(key))
 
+    private fun resolveSound(sound: String): Sound =
+        runCatching { Sound.valueOf(normalizeEnumKey(sound)) }
+            .getOrElse { throw IllegalArgumentException("Unsupported sound \"$sound\".", it) }
+
+    private fun resolveParticle(particle: String): Particle =
+        runCatching { Particle.valueOf(normalizeEnumKey(particle)) }
+            .getOrElse { throw IllegalArgumentException("Unsupported particle \"$particle\".", it) }
+
+    private fun resolvePotionEffectType(effect: String): PotionEffectType =
+        PotionEffectType.getByName(normalizeEnumKey(effect))
+            ?: throw IllegalArgumentException("Unsupported potion effect \"$effect\".")
+
+    private fun resolveBarColor(color: String): BarColor =
+        runCatching { BarColor.valueOf(normalizeEnumKey(color)) }
+            .getOrElse { throw IllegalArgumentException("Unsupported boss bar color \"$color\".", it) }
+
+    private fun resolveBarStyle(style: String): BarStyle =
+        runCatching { BarStyle.valueOf(normalizeEnumKey(style)) }
+            .getOrElse { throw IllegalArgumentException("Unsupported boss bar style \"$style\".", it) }
+
     private fun normalizeEnumKey(value: String): String =
         value.trim().replace('-', '_').replace(' ', '_').uppercase()
+
+    private fun normalizeKeyPath(value: String): String =
+        value.lowercase()
+            .map { character ->
+                when {
+                    character in 'a'..'z' -> character
+                    character in '0'..'9' -> character
+                    character == '/' || character == '_' || character == '.' || character == '-' -> character
+                    else -> '_'
+                }
+            }
+            .joinToString("")
+
+    private fun recipeKey(id: String): NamespacedKey =
+        NamespacedKey(plugin, normalizeKeyPath("${bundle.manifest.id}/$id"))
+
+    private fun recipeResult(spec: HostItemSpec): ItemStack =
+        (createItem(spec) as BukkitItemHandle).itemStack.clone()
+
+    private fun createShapedRecipe(key: NamespacedKey, spec: HostShapedRecipeSpec): ShapedRecipe {
+        val recipe = ShapedRecipe(key, recipeResult(spec.result))
+        recipe.shape(*spec.shape.toTypedArray())
+        spec.ingredients.forEach { (symbol, ingredient) ->
+            when (ingredient) {
+                is HostMaterialIngredient -> recipe.setIngredient(symbol, resolveMaterial(ingredient.type))
+                is HostExactItemIngredient -> recipe.setIngredient(
+                    symbol,
+                    RecipeChoice.ExactChoice(recipeResult(ingredient.item)),
+                )
+            }
+        }
+        return recipe
+    }
+
+    private fun createShapelessRecipe(key: NamespacedKey, spec: HostShapelessRecipeSpec): ShapelessRecipe {
+        val recipe = ShapelessRecipe(key, recipeResult(spec.result))
+        spec.ingredients.forEach { ingredient ->
+            when (ingredient) {
+                is HostMaterialIngredient -> recipe.addIngredient(resolveMaterial(ingredient.type))
+                is HostExactItemIngredient -> recipe.addIngredient(
+                    RecipeChoice.ExactChoice(recipeResult(ingredient.item)),
+                )
+            }
+        }
+        return recipe
+    }
 
     private fun toBukkitLocation(location: HostLocation, world: World? = null): Location {
         val resolvedWorld = world ?: location.world?.let(plugin.server::getWorld)
@@ -870,6 +1059,157 @@ internal class BukkitHostServices(
         }
 
         override fun backendHandle(): Any = inventory
+    }
+
+    private inner class BukkitBossBarHandle(
+        private val id: String?,
+        private val bossBar: BossBar,
+    ) : HostBossBar {
+        override fun id(): String? = id
+
+        override fun title(): String = bossBar.title
+
+        override fun setTitle(title: String) {
+            bossBar.setTitle(title)
+        }
+
+        override fun progress(): Double = bossBar.progress
+
+        override fun setProgress(progress: Double) {
+            bossBar.progress = progress.coerceIn(0.0, 1.0)
+        }
+
+        override fun color(): String = bossBar.color.name.lowercase()
+
+        override fun setColor(color: String) {
+            bossBar.color = resolveBarColor(color)
+        }
+
+        override fun style(): String = bossBar.style.name.lowercase()
+
+        override fun setStyle(style: String) {
+            bossBar.style = resolveBarStyle(style)
+        }
+
+        override fun players(): List<HostPlayer> = bossBar.players.map(::wrapPlayer)
+
+        override fun addPlayer(player: HostPlayer) {
+            bossBar.addPlayer((player as BukkitPlayerHandle).player)
+        }
+
+        override fun removePlayer(player: HostPlayer) {
+            bossBar.removePlayer((player as BukkitPlayerHandle).player)
+        }
+
+        override fun removeAllPlayers() {
+            bossBar.removeAll()
+        }
+
+        override fun backendHandle(): Any = bossBar
+
+        override fun close() {
+            bossBar.removeAll()
+        }
+    }
+
+    private inner class BukkitScoreboardHandle(
+        private val id: String?,
+        titleText: String,
+    ) : HostScoreboard {
+        private val manager = requireNotNull(Bukkit.getScoreboardManager()) {
+            "Scoreboard manager is unavailable."
+        }
+        private val scoreboard: Scoreboard = manager.newScoreboard
+        private val objective: Objective = scoreboard.registerNewObjective(
+            "lapis${(scoreboardSequence++).toString(36)}".take(16),
+            "dummy",
+            titleText,
+        ).apply {
+            displaySlot = DisplaySlot.SIDEBAR
+        }
+        private val viewers = linkedMapOf<UUID, Player>()
+        private val lines = linkedMapOf<Int, String>()
+        private val activeEntries = linkedMapOf<Int, String>()
+        private val activeTeams = linkedMapOf<Int, Team>()
+
+        override fun id(): String? = id
+
+        override fun title(): String = objective.displayName
+
+        override fun setTitle(title: String) {
+            objective.displayName = title
+        }
+
+        override fun setLine(score: Int, text: String) {
+            lines[score] = text
+            syncLines()
+        }
+
+        override fun removeLine(score: Int) {
+            lines.remove(score)
+            clearRenderedLine(score)
+        }
+
+        override fun clear() {
+            lines.clear()
+            clearRenderedLines()
+        }
+
+        override fun viewers(): List<HostPlayer> = viewers.values.map(::wrapPlayer)
+
+        override fun show(player: HostPlayer) {
+            val bukkitPlayer = (player as BukkitPlayerHandle).player
+            viewers[bukkitPlayer.uniqueId] = bukkitPlayer
+            bukkitPlayer.scoreboard = scoreboard
+        }
+
+        override fun hide(player: HostPlayer) {
+            val bukkitPlayer = (player as BukkitPlayerHandle).player
+            viewers.remove(bukkitPlayer.uniqueId)
+            bukkitPlayer.scoreboard = manager.mainScoreboard
+        }
+
+        override fun backendHandle(): Any = scoreboard
+
+        override fun close() {
+            viewers.values.toList().forEach { player ->
+                player.scoreboard = manager.mainScoreboard
+            }
+            viewers.clear()
+            clear()
+            objective.unregister()
+        }
+
+        private fun syncLines() {
+            clearRenderedLines()
+            lines.entries
+                .sortedByDescending { it.key }
+                .forEach { (score, text) ->
+                    val entry = lineEntry(score)
+                    val team = scoreboard.registerNewTeam("l${score.toString(36)}".take(16))
+                    team.addEntry(entry)
+                    team.prefix = text.take(64)
+                    objective.getScore(entry).score = score
+                    activeEntries[score] = entry
+                    activeTeams[score] = team
+                }
+        }
+
+        private fun clearRenderedLine(score: Int) {
+            activeEntries.remove(score)?.let(scoreboard::resetScores)
+            activeTeams.remove(score)?.unregister()
+        }
+
+        private fun clearRenderedLines() {
+            activeEntries.keys.toList().forEach(::clearRenderedLine)
+        }
+
+        private fun lineEntry(score: Int): String {
+            val values = ChatColor.values()
+            val first = values[Math.floorMod(score, values.size)].toString()
+            val second = values[Math.floorMod(score / values.size, values.size)].toString()
+            return first + second + ChatColor.RESET
+        }
     }
 
     private inner class LapisInventoryHolder(

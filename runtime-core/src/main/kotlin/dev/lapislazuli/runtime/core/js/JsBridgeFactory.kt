@@ -5,12 +5,20 @@ import dev.lapislazuli.runtime.core.host.Callback
 import dev.lapislazuli.runtime.core.host.ConfigStore
 import dev.lapislazuli.runtime.core.host.DataDirectory
 import dev.lapislazuli.runtime.core.host.HostBlock
+import dev.lapislazuli.runtime.core.host.HostBossBar
 import dev.lapislazuli.runtime.core.host.HostEntity
 import dev.lapislazuli.runtime.core.host.HostInventory
 import dev.lapislazuli.runtime.core.host.HostItem
 import dev.lapislazuli.runtime.core.host.HostItemSpec
 import dev.lapislazuli.runtime.core.host.HostLocation
 import dev.lapislazuli.runtime.core.host.HostPlayer
+import dev.lapislazuli.runtime.core.host.HostRecipeIngredient
+import dev.lapislazuli.runtime.core.host.HostExactItemIngredient
+import dev.lapislazuli.runtime.core.host.HostMaterialIngredient
+import dev.lapislazuli.runtime.core.host.HostRecipeSpec
+import dev.lapislazuli.runtime.core.host.HostScoreboard
+import dev.lapislazuli.runtime.core.host.HostShapedRecipeSpec
+import dev.lapislazuli.runtime.core.host.HostShapelessRecipeSpec
 import dev.lapislazuli.runtime.core.host.HostServices
 import dev.lapislazuli.runtime.core.host.HostWorld
 import dev.lapislazuli.runtime.core.host.KeyValueStore
@@ -35,6 +43,10 @@ class JsBridgeFactory {
         root["items"] = createItems(hostServices)
         root["inventory"] = createInventory(hostServices)
         root["chat"] = createChat(hostServices)
+        root["effects"] = createEffects(hostServices)
+        root["recipes"] = createRecipes(hostServices)
+        root["bossBars"] = createBossBars(hostServices)
+        root["scoreboards"] = createScoreboards(hostServices)
         root["storage"] = createStorage(hostServices)
         root["config"] = createConfig(hostServices.config())
         root["unsafe"] = createUnsafe(hostServices)
@@ -211,6 +223,114 @@ class JsBridgeFactory {
         mapOf(
             "broadcast" to executable { arguments ->
                 hostServices.broadcastMessage(textArg(arguments, 0, "message"))
+            },
+        )
+
+    private fun createEffects(hostServices: HostServices): Map<String, Any?> =
+        mapOf(
+            "playSound" to executable { arguments ->
+                val spec = requireNotNull(firstArg(arguments, "sound spec"))
+                val sound = memberString(spec, "sound", required = true)
+                    ?: error("effects.playSound requires a sound.")
+                val volume = memberDouble(spec, "volume", required = false)?.toFloat() ?: 1.0f
+                val pitch = memberDouble(spec, "pitch", required = false)?.toFloat() ?: 1.0f
+                val player = member(spec, "player")
+                if (player != null && !player.isNull) {
+                    hostServices.playSound(requireHostPlayer(player, "player"), sound, volume, pitch)
+                } else {
+                    val location = member(spec, "location")
+                        ?: error("effects.playSound requires either player or location.")
+                    hostServices.playSound(parseLocation(location, "location"), sound, volume, pitch)
+                }
+                null
+            },
+            "spawnParticle" to executable { arguments ->
+                val spec = requireNotNull(firstArg(arguments, "particle spec"))
+                val particle = memberString(spec, "particle", required = true)
+                    ?: error("effects.spawnParticle requires a particle.")
+                val location = parseLocation(
+                    requireNotNull(member(spec, "location")) { "effects.spawnParticle requires a location." },
+                    "location",
+                )
+                val players = member(spec, "players")?.let { parsePlayers(it, "players") } ?: emptyList()
+                hostServices.spawnParticle(
+                    location = location,
+                    particle = particle,
+                    count = memberInt(spec, "count", required = false) ?: 1,
+                    offsetX = memberDouble(spec, "offsetX", required = false) ?: 0.0,
+                    offsetY = memberDouble(spec, "offsetY", required = false) ?: 0.0,
+                    offsetZ = memberDouble(spec, "offsetZ", required = false) ?: 0.0,
+                    extra = memberDouble(spec, "extra", required = false) ?: 0.0,
+                    players = players,
+                )
+                null
+            },
+            "applyPotion" to executable { arguments ->
+                val spec = requireNotNull(firstArg(arguments, "potion spec"))
+                hostServices.applyPotionEffect(
+                    player = requireHostPlayer(
+                        requireNotNull(member(spec, "player")) { "effects.applyPotion requires a player." },
+                        "player",
+                    ),
+                    effect = memberString(spec, "effect", required = true)
+                        ?: error("effects.applyPotion requires an effect."),
+                    durationTicks = memberInt(spec, "durationTicks", required = true)
+                        ?: error("effects.applyPotion requires durationTicks."),
+                    amplifier = memberInt(spec, "amplifier", required = false) ?: 0,
+                    ambient = memberBoolean(spec, "ambient", default = false),
+                    particles = memberBoolean(spec, "particles", default = true),
+                    icon = memberBoolean(spec, "icon", default = true),
+                )
+            },
+            "clearPotion" to executable { arguments ->
+                require(arguments.isNotEmpty()) { "effects.clearPotion requires a player." }
+                val player = requireHostPlayer(arguments[0], "player")
+                val effect = if (arguments.size > 1 && !arguments[1].isNull) textValue(arguments[1]) else null
+                hostServices.clearPotionEffect(player, effect)
+                null
+            },
+        )
+
+    private fun createRecipes(hostServices: HostServices): Map<String, Any?> =
+        mapOf(
+            "register" to executable { arguments ->
+                val spec = parseRecipeSpec(arguments, 0, "recipe")
+                val registration = hostServices.registerRecipe(spec)
+                mapOf(
+                    "id" to spec.id,
+                    "unregister" to executable {
+                        registration.unregister()
+                        null
+                    },
+                )
+            },
+        )
+
+    private fun createBossBars(hostServices: HostServices): Map<String, Any?> =
+        mapOf(
+            "create" to executable { arguments ->
+                val spec = requireNotNull(firstArg(arguments, "boss bar spec"))
+                val handle = hostServices.createBossBar(
+                    id = memberString(spec, "id", required = false),
+                    title = memberText(spec, "title", required = true)
+                        ?: error("bossBars.create requires a title."),
+                    color = memberString(spec, "color", required = false) ?: "purple",
+                    style = memberString(spec, "style", required = false) ?: "solid",
+                )
+                memberDouble(spec, "progress", required = false)?.let(handle::setProgress)
+                handle
+            },
+        )
+
+    private fun createScoreboards(hostServices: HostServices): Map<String, Any?> =
+        mapOf(
+            "create" to executable { arguments ->
+                val spec = requireNotNull(firstArg(arguments, "scoreboard spec"))
+                hostServices.createScoreboard(
+                    id = memberString(spec, "id", required = false),
+                    title = memberText(spec, "title", required = true)
+                        ?: error("scoreboards.create requires a title."),
+                )
             },
         )
 
@@ -476,6 +596,87 @@ class JsBridgeFactory {
             "unsafe" to mapOf("handle" to inventory.backendHandle()),
         )
 
+    private fun bossBarObject(bossBar: HostBossBar): Map<String, Any?> =
+        mapOf(
+            "__lapisHostRef" to bossBar,
+            "id" to bossBar.id(),
+            "title" to executable { bossBar.title() },
+            "setTitle" to executable { arguments ->
+                bossBar.setTitle(textArg(arguments, 0, "title"))
+                null
+            },
+            "progress" to executable { bossBar.progress() },
+            "setProgress" to executable { arguments ->
+                bossBar.setProgress(doubleArg(arguments, 0, "progress"))
+                null
+            },
+            "color" to executable { bossBar.color() },
+            "setColor" to executable { arguments ->
+                bossBar.setColor(stringArg(arguments, 0, "color"))
+                null
+            },
+            "style" to executable { bossBar.style() },
+            "setStyle" to executable { arguments ->
+                bossBar.setStyle(stringArg(arguments, 0, "style"))
+                null
+            },
+            "players" to executable { bossBar.players() },
+            "addPlayer" to executable { arguments ->
+                bossBar.addPlayer(requireHostPlayer(arguments[0], "player"))
+                null
+            },
+            "removePlayer" to executable { arguments ->
+                bossBar.removePlayer(requireHostPlayer(arguments[0], "player"))
+                null
+            },
+            "clearPlayers" to executable {
+                bossBar.removeAllPlayers()
+                null
+            },
+            "delete" to executable {
+                bossBar.close()
+                null
+            },
+            "unsafe" to mapOf("handle" to bossBar.backendHandle()),
+        )
+
+    private fun scoreboardObject(scoreboard: HostScoreboard): Map<String, Any?> =
+        mapOf(
+            "__lapisHostRef" to scoreboard,
+            "id" to scoreboard.id(),
+            "title" to executable { scoreboard.title() },
+            "setTitle" to executable { arguments ->
+                scoreboard.setTitle(textArg(arguments, 0, "title"))
+                null
+            },
+            "setLine" to executable { arguments ->
+                scoreboard.setLine(intArg(arguments, 0, "score"), textArg(arguments, 1, "text"))
+                null
+            },
+            "removeLine" to executable { arguments ->
+                scoreboard.removeLine(intArg(arguments, 0, "score"))
+                null
+            },
+            "clear" to executable {
+                scoreboard.clear()
+                null
+            },
+            "viewers" to executable { scoreboard.viewers() },
+            "show" to executable { arguments ->
+                scoreboard.show(requireHostPlayer(arguments[0], "player"))
+                null
+            },
+            "hide" to executable { arguments ->
+                scoreboard.hide(requireHostPlayer(arguments[0], "player"))
+                null
+            },
+            "delete" to executable {
+                scoreboard.close()
+                null
+            },
+            "unsafe" to mapOf("handle" to scoreboard.backendHandle()),
+        )
+
     private fun locationObject(location: HostLocation): Map<String, Any?> =
         mapOf(
             "world" to location.world,
@@ -540,6 +741,8 @@ class JsBridgeFactory {
             is HostBlock -> blockObject(value)
             is HostItem -> itemObject(value)
             is HostInventory -> inventoryObject(value)
+            is HostBossBar -> bossBarObject(value)
+            is HostScoreboard -> scoreboardObject(value)
             is HostLocation -> locationObject(value)
             is Map<*, *> -> ProxyObject.fromMap(
                 value.entries.associate { (key, nestedValue) ->
@@ -566,7 +769,7 @@ class JsBridgeFactory {
             require(host is HostItem) { "Expected $field to be an item handle." }
             return host
         }
-        return error("Expected $field to be an item created by lapis.items.create(...).")
+        error("Expected $field to be an item created by lapis.items.create(...).")
     }
 
     private fun requireHostPlayer(value: Value, field: String): HostPlayer {
@@ -578,6 +781,18 @@ class JsBridgeFactory {
     private fun requireHostInventory(value: Value, field: String): HostInventory {
         val host = hostRef(value)
         require(host is HostInventory) { "Expected $field to be an inventory handle." }
+        return host
+    }
+
+    private fun requireHostBossBar(value: Value, field: String): HostBossBar {
+        val host = hostRef(value)
+        require(host is HostBossBar) { "Expected $field to be a boss bar handle." }
+        return host
+    }
+
+    private fun requireHostScoreboard(value: Value, field: String): HostScoreboard {
+        val host = hostRef(value)
+        require(host is HostScoreboard) { "Expected $field to be a scoreboard handle." }
         return host
     }
 
@@ -661,6 +876,93 @@ class JsBridgeFactory {
             yaw = (memberDouble(value, "yaw", required = false) ?: 0.0).toFloat(),
             pitch = (memberDouble(value, "pitch", required = false) ?: 0.0).toFloat(),
         )
+
+    private fun parsePlayers(value: Value, field: String): List<HostPlayer> {
+        require(value.hasArrayElements()) { "Expected array field \"$field\"." }
+        return List(value.arraySize.toInt()) { index ->
+            requireHostPlayer(value.getArrayElement(index.toLong()), "$field[$index]")
+        }
+    }
+
+    private fun parseRecipeSpec(arguments: Array<out Value>, index: Int, name: String): HostRecipeSpec =
+        parseRecipeSpec(requireArg(arguments, index, name), name)
+
+    private fun parseRecipeSpec(value: Value, name: String): HostRecipeSpec {
+        val kind = memberString(value, "kind", required = true)
+            ?: error("Expected $name.kind.")
+        val id = memberString(value, "id", required = true)
+            ?: error("Expected $name.id.")
+        val result = parseItemSpec(
+            requireNotNull(member(value, "result")) { "Expected $name.result." },
+            "$name.result",
+        )
+
+        return when (kind.lowercase()) {
+            "shaped" -> {
+                val shape = memberStringList(value, "shape")
+                require(shape.isNotEmpty()) { "Expected non-empty array field \"$name.shape\"." }
+                val ingredientsValue = requireNotNull(member(value, "ingredients")) {
+                    "Expected object field \"$name.ingredients\"."
+                }
+                val ingredients = linkedMapOf<Char, HostRecipeIngredient>()
+                when {
+                    ingredientsValue.hasMembers() -> {
+                        ingredientsValue.memberKeys.forEach { key ->
+                            require(key.length == 1) { "Shaped recipe key \"$key\" must be a single character." }
+                            ingredients[key.first()] = parseRecipeIngredient(
+                                requireNotNull(ingredientsValue.getMember(key)),
+                                "$name.ingredients.$key",
+                            )
+                        }
+                    }
+                    ingredientsValue.hasHashEntries() -> {
+                        val iterator = ingredientsValue.hashEntriesIterator
+                        while (iterator.hasIteratorNextElement()) {
+                            val entry = iterator.iteratorNextElement
+                            val key = textValue(entry.getArrayElement(0))
+                            require(key.length == 1) { "Shaped recipe key \"$key\" must be a single character." }
+                            ingredients[key.first()] = parseRecipeIngredient(
+                                entry.getArrayElement(1),
+                                "$name.ingredients.$key",
+                            )
+                        }
+                    }
+                    else -> error("Expected object field \"$name.ingredients\".")
+                }
+
+                HostShapedRecipeSpec(
+                    id = id,
+                    result = result,
+                    shape = shape,
+                    ingredients = ingredients,
+                )
+            }
+            "shapeless" -> {
+                val ingredientsValue = requireNotNull(member(value, "ingredients")) {
+                    "Expected array field \"$name.ingredients\"."
+                }
+                require(ingredientsValue.hasArrayElements()) { "Expected array field \"$name.ingredients\"." }
+                HostShapelessRecipeSpec(
+                    id = id,
+                    result = result,
+                    ingredients = List(ingredientsValue.arraySize.toInt()) { elementIndex ->
+                        parseRecipeIngredient(
+                            ingredientsValue.getArrayElement(elementIndex.toLong()),
+                            "$name.ingredients[$elementIndex]",
+                        )
+                    },
+                )
+            }
+            else -> error("Unsupported recipe kind \"$kind\".")
+        }
+    }
+
+    private fun parseRecipeIngredient(value: Value, name: String): HostRecipeIngredient =
+        when {
+            value.isString -> HostMaterialIngredient(value.asString())
+            value.hasMembers() || value.hasHashEntries() -> HostExactItemIngredient(parseItemSpec(value, name))
+            else -> error("Expected recipe ingredient \"$name\" to be a material string or item spec.")
+        }
 
     private fun executable(executable: Executable): ProxyExecutable =
         ProxyExecutable { arguments ->
@@ -788,6 +1090,15 @@ class JsBridgeFactory {
         return member.asDouble()
     }
 
+    private fun memberBoolean(value: Value, field: String, default: Boolean): Boolean {
+        val member = member(value, field) ?: return default
+        if (member.isNull) {
+            return default
+        }
+        require(member.isBoolean) { "Expected boolean field \"$field\"." }
+        return member.asBoolean()
+    }
+
     private fun stringArg(arguments: Array<out Value>, index: Int, name: String): String {
         require(arguments.size > index && arguments[index].isString) {
             "Expected string argument \"$name\"."
@@ -838,6 +1149,13 @@ class JsBridgeFactory {
             "Expected integer argument \"$name\"."
         }
         return arguments[index].asInt()
+    }
+
+    private fun doubleArg(arguments: Array<out Value>, index: Int, name: String): Double {
+        require(arguments.size > index && arguments[index].fitsInDouble()) {
+            "Expected number argument \"$name\"."
+        }
+        return arguments[index].asDouble()
     }
 
     private fun textArg(arguments: Array<out Value>, index: Int, name: String): String {

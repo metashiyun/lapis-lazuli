@@ -5,12 +5,15 @@ import dev.lapislazuli.runtime.core.host.Callback
 import dev.lapislazuli.runtime.core.host.ConfigStore
 import dev.lapislazuli.runtime.core.host.DataDirectory
 import dev.lapislazuli.runtime.core.host.HostBlock
+import dev.lapislazuli.runtime.core.host.HostBossBar
 import dev.lapislazuli.runtime.core.host.HostEntity
 import dev.lapislazuli.runtime.core.host.HostInventory
 import dev.lapislazuli.runtime.core.host.HostItem
 import dev.lapislazuli.runtime.core.host.HostItemSpec
 import dev.lapislazuli.runtime.core.host.HostLocation
 import dev.lapislazuli.runtime.core.host.HostPlayer
+import dev.lapislazuli.runtime.core.host.HostRecipeSpec
+import dev.lapislazuli.runtime.core.host.HostScoreboard
 import dev.lapislazuli.runtime.core.host.HostServices
 import dev.lapislazuli.runtime.core.host.HostWorld
 import dev.lapislazuli.runtime.core.host.KeyValueStore
@@ -30,6 +33,12 @@ class FakeHostServices(
     val sentMessages = mutableListOf<String>()
     val dispatchedCommands = mutableListOf<String>()
     val broadcastMessages = mutableListOf<String>()
+    val playedSounds = mutableListOf<PlayedSound>()
+    val spawnedParticles = mutableListOf<SpawnedParticle>()
+    val appliedPotionEffects = linkedMapOf<String, MutableMap<String, AppliedPotionEffect>>()
+    val registeredRecipes = mutableListOf<HostRecipeSpec>()
+    val bossBars = mutableListOf<FakeBossBarHandle>()
+    val scoreboards = mutableListOf<FakeScoreboardHandle>()
     val eventCallbacks = linkedMapOf<String, Callback>()
     val shutdownCallbacks = mutableListOf<Callback>()
     lateinit var commandCallback: Callback
@@ -192,6 +201,80 @@ class FakeHostServices(
     override fun createInventory(id: String?, title: String, size: Int): HostInventory =
         FakeInventoryHandle(id, title, size)
 
+    override fun playSound(location: HostLocation, sound: String, volume: Float, pitch: Float) {
+        playedSounds += PlayedSound(
+            target = "location:${location.world}:${location.x},${location.y},${location.z}",
+            sound = sound,
+            volume = volume,
+            pitch = pitch,
+        )
+    }
+
+    override fun playSound(player: HostPlayer, sound: String, volume: Float, pitch: Float) {
+        playedSounds += PlayedSound(
+            target = "player:${player.name()}",
+            sound = sound,
+            volume = volume,
+            pitch = pitch,
+        )
+    }
+
+    override fun spawnParticle(
+        location: HostLocation,
+        particle: String,
+        count: Int,
+        offsetX: Double,
+        offsetY: Double,
+        offsetZ: Double,
+        extra: Double,
+        players: List<HostPlayer>,
+    ) {
+        spawnedParticles += SpawnedParticle(
+            particle = particle,
+            location = location,
+            count = count,
+            offsetX = offsetX,
+            offsetY = offsetY,
+            offsetZ = offsetZ,
+            extra = extra,
+            players = players.map(HostPlayer::name),
+        )
+    }
+
+    override fun applyPotionEffect(
+        player: HostPlayer,
+        effect: String,
+        durationTicks: Int,
+        amplifier: Int,
+        ambient: Boolean,
+        particles: Boolean,
+        icon: Boolean,
+    ): Boolean {
+        val effects = appliedPotionEffects.getOrPut(player.id()) { linkedMapOf() }
+        effects[effect] = AppliedPotionEffect(effect, durationTicks, amplifier, ambient, particles, icon)
+        return true
+    }
+
+    override fun clearPotionEffect(player: HostPlayer, effect: String?) {
+        val effects = appliedPotionEffects[player.id()] ?: return
+        if (effect == null) {
+            effects.clear()
+        } else {
+            effects.remove(effect)
+        }
+    }
+
+    override fun registerRecipe(spec: HostRecipeSpec): Registration {
+        registeredRecipes += spec
+        return Registration { registeredRecipes.remove(spec) }
+    }
+
+    override fun createBossBar(id: String?, title: String, color: String, style: String): HostBossBar =
+        FakeBossBarHandle(id, title, color, style).also(bossBars::add)
+
+    override fun createScoreboard(id: String?, title: String): HostScoreboard =
+        FakeScoreboardHandle(id, title).also(scoreboards::add)
+
     override fun javaType(className: String): Class<*> = Class.forName(className)
 
     override fun serverHandle(): Any = Any()
@@ -248,6 +331,33 @@ class FakeHostServices(
 
             override fun keys(): List<String> = backing.keys.toList()
         }
+
+    data class PlayedSound(
+        val target: String,
+        val sound: String,
+        val volume: Float,
+        val pitch: Float,
+    )
+
+    data class SpawnedParticle(
+        val particle: String,
+        val location: HostLocation,
+        val count: Int,
+        val offsetX: Double,
+        val offsetY: Double,
+        val offsetZ: Double,
+        val extra: Double,
+        val players: List<String>,
+    )
+
+    data class AppliedPotionEffect(
+        val effect: String,
+        val durationTicks: Int,
+        val amplifier: Int,
+        val ambient: Boolean,
+        val particles: Boolean,
+        val icon: Boolean,
+    )
 
     class FakePlayerHandle(
         private val host: FakeHostServices,
@@ -484,5 +594,108 @@ class FakeHostServices(
         }
 
         override fun backendHandle(): Any = this
+    }
+
+    inner class FakeBossBarHandle(
+        private val bossBarId: String?,
+        private var currentTitle: String,
+        private var currentColor: String,
+        private var currentStyle: String,
+    ) : HostBossBar {
+        private val viewers = linkedMapOf<String, HostPlayer>()
+        private var currentProgress = 1.0
+
+        override fun id(): String? = bossBarId
+
+        override fun title(): String = currentTitle
+
+        override fun setTitle(title: String) {
+            currentTitle = title
+        }
+
+        override fun progress(): Double = currentProgress
+
+        override fun setProgress(progress: Double) {
+            currentProgress = progress
+        }
+
+        override fun color(): String = currentColor
+
+        override fun setColor(color: String) {
+            currentColor = color
+        }
+
+        override fun style(): String = currentStyle
+
+        override fun setStyle(style: String) {
+            currentStyle = style
+        }
+
+        override fun players(): List<HostPlayer> = viewers.values.toList()
+
+        override fun addPlayer(player: HostPlayer) {
+            viewers[player.id()] = player
+        }
+
+        override fun removePlayer(player: HostPlayer) {
+            viewers.remove(player.id())
+        }
+
+        override fun removeAllPlayers() {
+            viewers.clear()
+        }
+
+        override fun backendHandle(): Any = this
+
+        override fun close() {
+            removeAllPlayers()
+        }
+    }
+
+    inner class FakeScoreboardHandle(
+        private val scoreboardId: String?,
+        private var currentTitle: String,
+    ) : HostScoreboard {
+        private val entries = linkedMapOf<Int, String>()
+        private val viewersById = linkedMapOf<String, HostPlayer>()
+
+        override fun id(): String? = scoreboardId
+
+        override fun title(): String = currentTitle
+
+        override fun setTitle(title: String) {
+            currentTitle = title
+        }
+
+        override fun setLine(score: Int, text: String) {
+            entries[score] = text
+        }
+
+        override fun removeLine(score: Int) {
+            entries.remove(score)
+        }
+
+        override fun clear() {
+            entries.clear()
+        }
+
+        override fun viewers(): List<HostPlayer> = viewersById.values.toList()
+
+        override fun show(player: HostPlayer) {
+            viewersById[player.id()] = player
+        }
+
+        override fun hide(player: HostPlayer) {
+            viewersById.remove(player.id())
+        }
+
+        override fun backendHandle(): Any = this
+
+        override fun close() {
+            viewersById.clear()
+            entries.clear()
+        }
+
+        fun lines(): Map<Int, String> = entries.toMap()
     }
 }
