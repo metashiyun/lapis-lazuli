@@ -1,0 +1,12 @@
+{
+  "name": "@lapis-lazuli/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "lapis": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}
+

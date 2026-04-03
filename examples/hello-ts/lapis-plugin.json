@@ -1,0 +1,9 @@
+{
+  "id": "hello-ts",
+  "name": "Hello TS",
+  "version": "0.1.0",
+  "engine": "js",
+  "main": "./src/index.ts",
+  "apiVersion": "1.0"
+}
+
