@@ -9,6 +9,7 @@
     "examples/*"
   ],
   "scripts": {
+    "bump:version": "node scripts/bump-version.mjs",
     "check:release-version": "node scripts/check-release-version.mjs",
     "postinstall": "bun run --filter lapis-lazuli build",
     "test": "bun test",

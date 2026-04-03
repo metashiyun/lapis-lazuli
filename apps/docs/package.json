@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "dev:cf": "astro build && wrangler dev",
-    "deploy": "astro build && wrangler deploy"
+    "deploy": "astro build && node ../../scripts/deploy-docs-to-cloudflare.mjs"
   },
   "devDependencies": {
     "astro": "^5.13.0",
