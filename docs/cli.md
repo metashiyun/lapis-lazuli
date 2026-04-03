@@ -11,17 +11,16 @@ bun packages/cli/src/index.ts <command> ...
 ### `create`
 
 ```sh
-bun packages/cli/src/index.ts create <directory> [display-name]
+bun packages/cli/src/index.ts create <directory> [display-name] [engine]
 ```
 
-Creates a new plugin project with:
+Supported engines:
 
-- `package.json`
-- `lapis-plugin.json`
-- `src/index.ts`
-- `.gitignore`
+- `js`
+- `python`
 
-The generated project depends on `@lapis-lazuli/sdk`.
+The generated TypeScript starter depends on `@lapis-lazuli/sdk` and uses the current
+service-oriented API.
 
 ### `validate`
 
@@ -29,12 +28,12 @@ The generated project depends on `@lapis-lazuli/sdk`.
 bun packages/cli/src/index.ts validate <directory>
 ```
 
-Validation rules:
+Validation checks:
 
-- `lapis-plugin.json` must exist
-- `id`, `name`, `version`, `engine`, `main`, and `apiVersion` must be non-empty strings
-- the manifest entrypoint must exist
-- `engine` must be `"js"`
+- `lapis-plugin.json` exists
+- required manifest fields are non-empty strings
+- the manifest entrypoint exists
+- `engine` is one of the supported runtime engines
 
 ### `build`
 
@@ -45,9 +44,8 @@ bun packages/cli/src/index.ts build <directory>
 Behavior:
 
 - validates the manifest
-- builds the entrypoint with Bun
-- writes the build output to `.lapis/build`
-- targets CommonJS output for the runtime
+- bundles JS/TS entrypoints with Bun into `.lapis/build`
+- stages Python projects into `.lapis/build`
 
 ### `bundle`
 
@@ -59,24 +57,7 @@ Behavior:
 
 - runs the build flow
 - writes a deployable bundle directory
-- emits:
-  - `lapis-plugin.json`
-  - `main.js`
-- rewrites manifest `main` to `main.js`
+- rewrites manifest `main` to the bundled output path
 
-Default output path:
-
-```text
-<project>/dist/<manifest.id>/
-```
-
-## Build Notes
-
-The CLI currently assumes:
-
-- Bun is available
-- the runtime engine is JavaScript only
-- plugins are bundled into a single deployable entrypoint
-
-For repo-local development, the build flow also rewrites `@lapis-lazuli/sdk` imports to
-the workspace source when needed so local builds work without publishing the SDK first.
+For repo-local development, JS builds rewrite `@lapis-lazuli/sdk` imports to the local
+workspace package so publishing is not required during development.

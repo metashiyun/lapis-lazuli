@@ -1,65 +1,43 @@
 # Lapis Lazuli
 
-Lapis Lazuli is a script-plugin platform for Minecraft servers. Plugin authors write
-TypeScript, JavaScript, or Python, bundle that code into a deployable directory, and
-load it through a JVM runtime plugin.
+Lapis Lazuli is a modern Minecraft plugin SDK for TypeScript, JavaScript, and optional
+Python authoring. Plugins target the Lapis SDK, and the runtime plugin implements that
+SDK on Bukkit-family servers.
 
-The repository currently ships:
+Current architecture:
 
-- `runtime-core`: bundle loading, lifecycle management, and the GraalJS/GraalPy runtimes
-- `runtime-bukkit`: the Paper-focused Minecraft server adapter
-- `@lapis-lazuli/sdk`: the TypeScript authoring API
-- `@lapis-lazuli/cli`: project scaffolding, validation, build, and bundle commands
-- `examples/hello-ts`: the reference TypeScript plugin
-- `examples/hello-python`: the reference Python plugin
+- `packages/sdk`: the public Lapis SDK
+- `packages/cli`: project scaffolding, validation, build, and bundling
+- `runtime-core`: bundle loading plus the GraalJS and GraalPy runtimes
+- `runtime-bukkit`: the Bukkit/Paper backend implementation of the SDK
+- `examples/hello-ts`: reference TypeScript plugin
+- `examples/hello-python`: reference Python plugin
 
 ## Status Snapshot
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Runtime language engines | Supported | JavaScript via GraalJS and Python via GraalPy |
-| TypeScript authoring | Supported | TypeScript compiles to the JavaScript runtime format |
-| JavaScript authoring | Supported | Plain JS bundles are valid |
-| Python authoring | Supported | Python bundles are loaded through the Python runtime |
-| Paper server target | Supported | Compiled and smoke-tested against Paper 1.21.x |
-| Bukkit / Spigot server target | Experimental / unverified | The adapter now avoids some Paper-only assumptions, but Bukkit and Spigot are still not validated release targets |
-| Stable typed server API | Expanding | Commands, 3 typed events, generic Java event hooks, scheduler, config, data directory, logger, server bridge, Java interop |
-| Full Bukkit / Paper API via SDK | Not supported | Use raw server access and Java interop for advanced access; this is not yet a full typed wrapper layer |
+| TypeScript authoring | Supported | Primary design target |
+| JavaScript authoring | Supported | Uses the same runtime shape as TS |
+| Python authoring | Supported / early | Runtime support exists, but TS remains the design authority |
+| `@lapis-lazuli/sdk` | Active redesign | Service-oriented Lapis API |
+| Paper runtime target | Supported | Compile target and smoke-tested path |
+| Bukkit-family core | In progress | SDK is designed around Bukkit-common capabilities |
+| Raw backend escape hatch | Supported | Available under `context.unsafe`, not the primary API |
 
-## What "Supports Bukkit / Spigot / Paper API" Means Here
+## SDK Direction
 
-Lapis Lazuli does not currently expose the full Bukkit, Spigot, or Paper API as a
-curated typed SDK.
+Lapis is not a Java bridge API.
 
-What it does provide is:
+The goal is:
 
-- a documented host API through `@lapis-lazuli/sdk`
-- a server bridge for raw server/plugin access and console command dispatch
-- generic Java-event subscription through `context.events.onJava(...)`
-- unrestricted Java interop from JS/TS/Python scripts through `context.javaInterop.type(...)`
+- a TypeScript-first SDK with modern ergonomics
+- capability-focused services such as `app`, `commands`, `events`, `tasks`, `players`,
+  `worlds`, `entities`, `items`, `inventory`, `chat`, `storage`, and `config`
+- a runtime backend that maps those services onto Bukkit-family servers
+- an explicit `unsafe` escape hatch for raw Java and backend access when needed
 
-That means a script can call deeper JVM APIs such as `org.bukkit.Bukkit` or Paper
-classes directly, can receive raw Java event instances, and can dispatch console
-commands, but Lapis Lazuli does not currently type, wrap, document, or cross-version
-test that full surface for you.
-
-## Documentation
-
-Start with the documentation index:
-
-- [docs/README.md](docs/README.md)
-
-Key reference documents:
-
-- [docs/compatibility.md](docs/compatibility.md)
-- [docs/architecture.md](docs/architecture.md)
-- [docs/api/runtime-host-api.md](docs/api/runtime-host-api.md)
-- [docs/api/typescript-sdk.md](docs/api/typescript-sdk.md)
-- [docs/cli.md](docs/cli.md)
-- [docs/bundle-format.md](docs/bundle-format.md)
-- [docs/authoring.md](docs/authoring.md)
-- [docs/testing.md](docs/testing.md)
-- [docs/python-sdk.md](docs/python-sdk.md)
+The SDK deliberately does not try to mirror the Bukkit or Paper Java APIs 1:1.
 
 ## Quick Start
 
@@ -91,9 +69,7 @@ into:
 <server>/plugins/
 ```
 
-The tested server target is Paper.
-
-## Local Development Commands
+## Local Development
 
 ```sh
 bun install
@@ -105,10 +81,6 @@ bun packages/cli/src/index.ts bundle examples/hello-ts
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ```
 
-The TypeScript workspace is Bun-based. The JVM runtime is Gradle-based and targets
-Java 21.
+## Documentation
 
-Python bundles currently support bundle-local source files and modules. Third-party
-Python packages are not bundled automatically yet.
-
-For a fuller walkthrough, see [docs/authoring.md](docs/authoring.md).
+Start with [docs/README.md](docs/README.md).

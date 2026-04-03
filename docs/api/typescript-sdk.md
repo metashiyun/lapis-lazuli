@@ -6,15 +6,8 @@ Package name:
 @lapis-lazuli/sdk
 ```
 
-The SDK is the typed authoring layer for Lapis Lazuli plugins. It describes the plugin
-shape and the runtime context, but it does not itself implement server behavior.
-
-## Current Export Surface
-
-The package currently exports:
-
-- `definePlugin`
-- the type interfaces used by plugin authors
+The SDK is the public TypeScript authoring surface for Lapis Lazuli. It is service-first
+and TypeScript-first; it does not attempt to mirror Bukkit or Paper class-for-class.
 
 ## Minimal Example
 
@@ -23,211 +16,81 @@ import { definePlugin } from "@lapis-lazuli/sdk";
 
 export default definePlugin({
   name: "Example Plugin",
-  version: "0.1.0",
   onEnable(context) {
-    context.logger.info("Enabled.");
-  },
-  onDisable(context) {
-    context.logger.info("Disabled.");
+    context.app.log.info("Enabled.");
+
+    context.commands.register({
+      name: "hello",
+      execute({ sender }) {
+        sender.sendMessage("Hello from Lapis.");
+      },
+    });
   },
 });
-```
-
-## Core Types
-
-```ts
-export type Awaitable<T> = T | Promise<T>;
-
-export interface PluginDefinition {
-  name: string;
-  version?: string;
-  onEnable?(context: PluginContext): Awaitable<void>;
-  onDisable?(context: PluginContext): Awaitable<void>;
-}
-
-export function definePlugin<T extends PluginDefinition>(definition: T): T;
 ```
 
 ## `PluginContext`
 
 ```ts
-export interface PluginContext {
-  logger: Logger;
-  events: EventRegistry;
+interface PluginContext {
+  app: AppService;
   commands: CommandRegistry;
-  scheduler: Scheduler;
-  config: ConfigStore;
-  dataDir: DataDirectory;
-  server: ServerBridge;
-  javaInterop: JavaInterop;
+  events: EventRegistry;
+  tasks: TaskRegistry;
+  players: PlayerDirectory;
+  worlds: WorldDirectory;
+  entities: EntityDirectory;
+  items: ItemFactory;
+  inventory: InventoryDirectory;
+  chat: ChatService;
+  storage: StorageService;
+  config: KeyValueStore;
+  unsafe: UnsafeBridge;
 }
 ```
 
-For runtime semantics, see [runtime-host-api.md](runtime-host-api.md).
+## Main Design Rules
 
-## Logger Types
+- Common plugin work should not require Java knowledge.
+- Service modules should stay small and discoverable.
+- Values passed across the API should prefer plain DTOs such as `Location`, `TextInput`,
+  and item specs.
+- Raw backend access belongs under `unsafe`.
 
-```ts
-export interface Logger {
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
-  debug(message: string): void;
-}
-```
+## Event Model
 
-## Command Types
+The SDK ships typed Lapis event names instead of raw Java event class names. Examples:
 
-```ts
-export interface HookHandle {
-  unsubscribe(): void;
-}
+- `server.ready`
+- `player.join`
+- `player.chat`
+- `block.break`
+- `entity.damage`
+- `inventory.click`
 
-export interface CommandSender {
-  name: string;
-  type: "player" | "console" | "other";
-  uuid?: string;
-  javaHandle?: unknown;
-  sendMessage(message: string): void;
-}
+For backend-specific or not-yet-modeled events, use `context.unsafe.events.onJava(...)`.
 
-export interface CommandExecutionContext {
-  sender: CommandSender;
-  args: string[];
-  label: string;
-}
+## Handle Model
 
-export type CommandResult = void | boolean | string;
+The SDK uses focused handles such as:
 
-export interface CommandDefinition {
-  name: string;
-  description?: string;
-  usage?: string;
-  aliases?: string[];
-  execute(context: CommandExecutionContext): Awaitable<CommandResult>;
-}
+- `PlayerHandle`
+- `WorldHandle`
+- `EntityHandle`
+- `BlockHandle`
+- `InventoryHandle`
+- `ItemHandle`
 
-export interface CommandRegistry {
-  register(command: CommandDefinition): HookHandle;
-}
-```
+These provide a curated subset of common operations. They are not intended to be direct
+wrappers around the full Java object model.
 
-## Event Types
+## Escape Hatch
 
-```ts
-export interface PlayerJoinEvent {
-  type: "playerJoin";
-  playerName: string;
-  playerUuid: string;
-  playerHandle?: unknown;
-  javaEvent?: unknown;
-  joinMessage?: string | null;
-}
+The SDK still supports advanced backend access through:
 
-export interface PlayerQuitEvent {
-  type: "playerQuit";
-  playerName: string;
-  playerUuid: string;
-  playerHandle?: unknown;
-  javaEvent?: unknown;
-  quitMessage?: string | null;
-}
+- `context.unsafe.java.type(...)`
+- `context.unsafe.backend.*`
 
-export interface ServerLoadEvent {
-  type: "serverLoad";
-  reload: boolean;
-  javaEvent?: unknown;
-}
+Treat those as secondary APIs, not the primary authoring path.
 
-export interface EventMap {
-  playerJoin: PlayerJoinEvent;
-  playerQuit: PlayerQuitEvent;
-  serverLoad: ServerLoadEvent;
-}
-
-export interface EventRegistry {
-  on<K extends keyof EventMap>(
-    event: K,
-    handler: (payload: EventMap[K]) => Awaitable<void>,
-  ): HookHandle;
-  onJava<T = unknown>(
-    eventClassName: string,
-    handler: (payload: T) => Awaitable<void>,
-  ): HookHandle;
-}
-```
-
-Only these three event keys are typed today, but `onJava(...)` lets plugins subscribe to
-arbitrary JVM event classes immediately.
-
-## Scheduler Types
-
-```ts
-export interface TaskHandle {
-  cancel(): void;
-}
-
-export interface Scheduler {
-  runNow(task: () => Awaitable<void>): TaskHandle;
-  runLaterTicks(delayTicks: number, task: () => Awaitable<void>): TaskHandle;
-  runTimerTicks(
-    delayTicks: number,
-    intervalTicks: number,
-    task: () => Awaitable<void>,
-  ): TaskHandle;
-}
-```
-
-## Config And Data Types
-
-```ts
-export interface ConfigStore {
-  get<T = unknown>(path: string): T | null;
-  set(path: string, value: unknown): void;
-  save(): void;
-  reload(): void;
-  keys(): string[];
-}
-
-export interface DataDirectory {
-  path: string;
-  resolve(...segments: string[]): string;
-  readText(relativePath: string): string;
-  writeText(relativePath: string, contents: string): void;
-  exists(relativePath: string): boolean;
-  mkdirs(relativePath?: string): void;
-}
-```
-
-## Server Bridge Type
-
-```ts
-export interface ServerBridge {
-  bukkit: unknown;
-  plugin: unknown;
-  console: unknown;
-  dispatchCommand(command: string): boolean;
-  broadcast(message: string): number;
-}
-```
-
-## Java Interop Type
-
-```ts
-export interface JavaInterop {
-  type<T = unknown>(className: string): T;
-}
-```
-
-This is how TS plugins break out of the limited stable SDK and call JVM APIs directly.
-
-## Scope Boundary
-
-The SDK should currently be understood as:
-
-- a typed plugin authoring contract
-- not a full Bukkit / Spigot / Paper wrapper
-- compatible with both TS and JS authoring styles
-
-If broader server coverage is needed, the correct next step is to grow the runtime host
-bridge and update this document accordingly.
+For the exact exported types, read [packages/sdk/src/index.ts](../../packages/sdk/src/index.ts).

@@ -1,7 +1,6 @@
 # Testing Strategy
 
-Lapis Lazuli should be validated in layers. Each layer proves assumptions used by the
-next one.
+Lapis Lazuli is validated in layers.
 
 ## 1. Workspace Tests
 
@@ -11,9 +10,9 @@ bun test
 
 Primary focus:
 
-- SDK type and behavior expectations
-- CLI manifest validation
-- CLI build and bundle generation
+- SDK type surface
+- CLI scaffolding
+- build and bundle generation
 
 ## 2. JVM Runtime Tests
 
@@ -23,15 +22,12 @@ Primary focus:
 
 Primary focus:
 
-- manifest parsing
-- bundle directory loading
-- runtime lifecycle behavior
-- GraalJS bridge behavior
-- bundling the real example plugin and loading it through `JsLanguageRuntime`
+- bundle loading
+- lifecycle handling
+- JS and Python runtime context behavior
+- example bundle integration
 
-These tests verify the runtime without a live Minecraft server.
-
-## 3. Adapter Compile Check
+## 3. Backend Compile Check
 
 ```sh
 ./gradlew :runtime-bukkit:compileKotlin
@@ -39,7 +35,7 @@ These tests verify the runtime without a live Minecraft server.
 
 Primary focus:
 
-- the Bukkit / Paper adapter still compiles against the declared Paper API dependency
+- the Bukkit/Paper backend still compiles against the declared API dependency
 
 ## 4. Real Paper Smoke Test
 
@@ -49,48 +45,29 @@ PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 
 Primary focus:
 
-- the shaded runtime plugin boots on a real Paper server
-- the example bundle is discovered under `plugins/LapisLazuli/bundles`
-- `onEnable` executes
-- `serverLoad` handlers execute
-- TypeScript-defined commands are callable from the console
-- hot reload works after replacing bundle code
-- the server shuts down cleanly
+- runtime plugin startup
+- bundle discovery
+- `server.ready` handling
+- command execution
+- hot reload
+- clean shutdown
 
 ## Recommended Gates
 
-### Every change
+Every change:
 
 ```sh
 bun test
 ./gradlew :runtime-core:test :runtime-bukkit:compileKotlin
 ```
 
-### Runtime or adapter changes
+Runtime or backend changes:
 
 ```sh
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ```
 
-### Before release
+## Coverage Limits
 
-```sh
-bun test
-./gradlew clean :runtime-core:test :runtime-bukkit:shadowJar
-PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
-```
-
-## Current Coverage Limits
-
-The real-server smoke test covers Paper only.
-
-That means current test evidence supports this product statement:
-
-- Paper is the validated server target
-- Bukkit and Spigot are not currently verified release targets
-
-## CI Direction
-
-The Paper smoke test should become a CI job once Paper jar provisioning is decided. The
-simplest path is to cache or pre-provision the server jar and run
-`scripts/paper-smoke.sh` headlessly.
+Paper is still the validated real-server target. Bukkit-family broad compatibility is an
+active design goal, not a fully validated release claim yet.

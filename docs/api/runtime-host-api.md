@@ -1,21 +1,24 @@
 # Runtime Host API
 
-This document defines the runtime contract exposed to a loaded JavaScript bundle.
+This document describes the runtime context injected into JavaScript and Python bundles.
 
-The host context contains seven stable service groups plus one escape hatch:
+The public model is service-oriented:
 
-- `logger`
-- `events`
+- `app`
 - `commands`
-- `scheduler`
+- `events`
+- `tasks`
+- `players`
+- `worlds`
+- `entities`
+- `items`
+- `inventory`
+- `chat`
+- `storage`
 - `config`
-- `dataDir`
-- `server`
-- `javaInterop`
+- `unsafe`
 
 ## Lifecycle
-
-A bundle exports a plugin object with this lifecycle shape:
 
 ```ts
 type Awaitable<T> = T | Promise<T>;
@@ -30,241 +33,113 @@ interface PluginDefinition {
 
 `onEnable` runs once after the bundle is loaded.
 
-`onDisable` runs during shutdown or hot reload if the plugin was successfully enabled.
+`onDisable` runs during shutdown or hot reload if enable completed successfully.
 
-## `PluginContext`
+## `app`
 
-```ts
-interface PluginContext {
-  logger: Logger;
-  events: EventRegistry;
-  commands: CommandRegistry;
-  scheduler: Scheduler;
-  config: ConfigStore;
-  dataDir: DataDirectory;
-  server: ServerBridge;
-  javaInterop: JavaInterop;
-}
-```
+`app` contains runtime metadata and bundle-local lifecycle helpers:
 
-## `logger`
+- `id`
+- `name`
+- `version`
+- `engine`
+- `apiVersion`
+- `backend`
+- `runtime`
+- `log`
+- `onShutdown(...)`
 
-```ts
-interface Logger {
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
-  debug(message: string): void;
-}
-```
-
-Notes:
-
-- `debug(...)` currently logs through the host logger as an info-level message with a
-  `[debug]` prefix.
-- bundle logs are prefixed on the Bukkit side with the bundle id.
-
-## `events`
-
-```ts
-interface HookHandle {
-  unsubscribe(): void;
-}
-
-interface EventRegistry {
-  on<K extends keyof EventMap>(
-    event: K,
-    handler: (payload: EventMap[K]) => Awaitable<void>,
-  ): HookHandle;
-  onJava<T = unknown>(
-    eventClassName: string,
-    handler: (payload: T) => Awaitable<void>,
-  ): HookHandle;
-}
-```
-
-### Supported Event Keys
-
-| Event key | Payload |
-| --- | --- |
-| `playerJoin` | `{ type: "playerJoin"; playerName: string; playerUuid: string; playerHandle?: unknown; javaEvent?: unknown; joinMessage?: string | null }` |
-| `playerQuit` | `{ type: "playerQuit"; playerName: string; playerUuid: string; playerHandle?: unknown; javaEvent?: unknown; quitMessage?: string | null }` |
-| `serverLoad` | `{ type: "serverLoad"; reload: boolean; javaEvent?: unknown }` |
-
-Notes:
-
-- only these three event keys are supported today
-- payloads are plain JS objects
-- typed payloads now also include raw handles where useful, such as `javaEvent` and `playerHandle`
-- unsupported event keys fail at registration time
-
-### Generic Java Events
-
-`events.onJava(...)` subscribes to any JVM event class by fully qualified class name.
-
-Example:
-
-```ts
-context.events.onJava("org.bukkit.event.block.BlockBreakEvent", (event: any) => {
-  const player = event.getPlayer();
-  context.logger.info(`Block break by ${player.getName()}`);
-});
-```
-
-This is the main bridge for broader Bukkit / Spigot / Paper event coverage before a
-typed wrapper exists for each event.
+The logger is now accessed through `context.app.log`.
 
 ## `commands`
 
-```ts
-type CommandResult = void | boolean | string;
+`commands.register(...)` installs a command using a Lapis command definition.
 
-interface CommandSender {
-  name: string;
-  type: "player" | "console" | "other";
-  uuid?: string;
-  javaHandle?: unknown;
-  sendMessage(message: string): void;
-}
+Command sender payloads expose:
 
-interface CommandExecutionContext {
-  sender: CommandSender;
-  args: string[];
-  label: string;
-}
+- `name`
+- `type`
+- optional `player`
+- `sendMessage(...)`
+- `hasPermission(...)`
+- `unsafe.handle`
 
-interface CommandDefinition {
-  name: string;
-  description?: string;
-  usage?: string;
-  aliases?: string[];
-  execute(context: CommandExecutionContext): Awaitable<CommandResult>;
-}
+## `events`
 
-interface CommandRegistry {
-  register(command: CommandDefinition): HookHandle;
-}
-```
+`events.on(...)` subscribes to named Lapis events.
 
-Command return handling:
+Current named events:
 
-- `true` or `false` maps directly to the underlying command success value
-- a returned `string` is sent to the sender as a chat message and then treated as success
-- `undefined` produces no extra output
+- `server.ready`
+- `player.join`
+- `player.quit`
+- `player.chat`
+- `player.move`
+- `player.interact`
+- `player.teleport`
+- `block.break`
+- `block.place`
+- `entity.damage`
+- `entity.death`
+- `inventory.click`
+- `inventory.close`
+- `world.load`
+- `world.unload`
 
-The exposed command sender is a small DTO with an optional `javaHandle` for direct access
-to the backing Bukkit sender object.
+Cancellable events expose:
 
-## `scheduler`
+- `cancelled`
+- `cancel()`
+- `uncancel()`
 
-```ts
-interface TaskHandle {
-  cancel(): void;
-}
+Event payloads use Lapis handles such as `player`, `world`, `entity`, `block`,
+`inventory`, and `item`.
 
-interface Scheduler {
-  runNow(task: () => Awaitable<void>): TaskHandle;
-  runLaterTicks(delayTicks: number, task: () => Awaitable<void>): TaskHandle;
-  runTimerTicks(
-    delayTicks: number,
-    intervalTicks: number,
-    task: () => Awaitable<void>,
-  ): TaskHandle;
-}
-```
+## `tasks`
 
-Notes:
+Task helpers are lifecycle-aware. Tasks are cancelled automatically when the bundle is
+disabled.
 
-- the Bukkit adapter uses the server scheduler
-- these helpers are for immediate, delayed, and repeating tasks
-- there is no separate async scheduler abstraction yet
+Available methods:
 
-## `config`
+- `run(task)`
+- `delay(delayTicks, task)`
+- `repeat(intervalTicks, task)`
+- `timer(delayTicks, intervalTicks, task)`
 
-```ts
-interface ConfigStore {
-  get<T = unknown>(path: string): T | null;
-  set(path: string, value: unknown): void;
-  save(): void;
-  reload(): void;
-  keys(): string[];
-}
-```
+## Gameplay Services
 
-The Bukkit adapter backs this with `config.yml` inside the bundle directory.
+The runtime exposes common plugin work through service modules:
 
-Recommended value shapes:
+- `players.online/get/require`
+- `worlds.list/get/require`
+- `entities.get/spawn`
+- `items.create`
+- `inventory.create/open`
+- `chat.broadcast`
 
-- strings
-- booleans
-- numbers
-- arrays
-- plain objects
+Handles returned from these services are intentionally small and ergonomic rather than
+mirroring the Java API directly.
 
-Those are the safest cross-language values for the current bridge.
+## Persistence
 
-## `dataDir`
+Two persistence paths are exposed:
 
-```ts
-interface DataDirectory {
-  path: string;
-  resolve(...segments: string[]): string;
-  readText(relativePath: string): string;
-  writeText(relativePath: string, contents: string): void;
-  exists(relativePath: string): boolean;
-  mkdirs(relativePath?: string): void;
-}
-```
+- `config`: bundle config values backed by `config.yml`
+- `storage.plugin`: bundle-scoped persistent key/value storage
+- `storage.files`: bundle-scoped file storage rooted at `data/`
 
-Notes:
+## `unsafe`
 
-- the data directory is bundle-scoped
-- the runtime creates it automatically
-- path resolution is constrained so calls cannot escape the bundle data directory
+`unsafe` is the explicit escape hatch for backend-specific work.
 
-## `server`
+Available paths:
 
-```ts
-interface ServerBridge {
-  bukkit: unknown;
-  plugin: unknown;
-  console: unknown;
-  dispatchCommand(command: string): boolean;
-  broadcast(message: string): number;
-}
-```
+- `unsafe.events.onJava(...)`
+- `unsafe.java.type(...)`
+- `unsafe.backend.server`
+- `unsafe.backend.plugin`
+- `unsafe.backend.console`
+- `unsafe.backend.dispatchCommand(...)`
 
-This bridge exposes raw runtime handles plus a few common server actions.
-
-Notes:
-
-- `bukkit` is the backing `org.bukkit.Server` instance
-- `plugin` is the Lapis Lazuli runtime plugin instance
-- `console` is the console sender handle
-- `dispatchCommand(...)` runs a command as the console sender
-- `broadcast(...)` sends a plain-text broadcast through the backing server
-
-## `javaInterop`
-
-```ts
-interface JavaInterop {
-  type<T = unknown>(className: string): T;
-}
-```
-
-This is the low-level escape hatch to the JVM world.
-
-Example:
-
-```ts
-const Bukkit = context.javaInterop.type<any>("org.bukkit.Bukkit");
-
-const onlinePlayers = Bukkit.getOnlinePlayers();
-```
-
-Important boundary:
-
-- this is not a stable Lapis Lazuli wrapper API
-- it is direct JVM interop
-- compatibility depends on the actual server implementation and visible classes
-- it is the mechanism you use when the stable SDK does not expose a feature yet
+Use this only when the Lapis SDK does not yet cover the required capability.
