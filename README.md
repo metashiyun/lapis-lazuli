@@ -4,6 +4,21 @@ Lapis Lazuli is a modern Minecraft plugin SDK for TypeScript, JavaScript, and Py
 You write plugins against the Lapis SDK, bundle them, and run them through the
 Lapis runtime plugin on Bukkit-family servers.
 
+## Published Packages
+
+- npm SDK: `lapis-lazuli`
+- npm CLI: `create-lapis-lazuli`
+- PyPI SDK: `lapis-lazuli`
+- Python import path: `lapis_lazuli`
+
+Install from registries:
+
+```sh
+npm install lapis-lazuli
+python -m pip install lapis-lazuli
+npx create-lapis-lazuli my-plugin
+```
+
 ## Quick Start
 
 Install dependencies and build the runtime:
@@ -16,8 +31,9 @@ bun install
 Create a plugin project:
 
 ```sh
+npx create-lapis-lazuli /absolute/path/to/my-plugin
+# or, from source:
 bun tooling/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
-# or
 bun tooling/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
