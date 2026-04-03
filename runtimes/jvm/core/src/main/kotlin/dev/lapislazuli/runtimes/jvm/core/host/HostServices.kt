@@ -39,6 +39,8 @@ interface HostServices : AutoCloseable {
 
     fun dataDirectory(): DataDirectory
 
+    fun http(): HttpService
+
     fun onlinePlayers(): List<HostPlayer>
 
     fun findPlayer(query: String): HostPlayer?

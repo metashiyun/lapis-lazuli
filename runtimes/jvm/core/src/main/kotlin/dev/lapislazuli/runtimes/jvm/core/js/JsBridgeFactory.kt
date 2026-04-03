@@ -10,6 +10,9 @@ import dev.lapislazuli.runtimes.jvm.core.host.HostEntity
 import dev.lapislazuli.runtimes.jvm.core.host.HostInventory
 import dev.lapislazuli.runtimes.jvm.core.host.HostItem
 import dev.lapislazuli.runtimes.jvm.core.host.HostItemSpec
+import dev.lapislazuli.runtimes.jvm.core.host.HttpRequestSpec
+import dev.lapislazuli.runtimes.jvm.core.host.HttpResponsePayload
+import dev.lapislazuli.runtimes.jvm.core.host.HttpService
 import dev.lapislazuli.runtimes.jvm.core.host.HostLocation
 import dev.lapislazuli.runtimes.jvm.core.host.HostPlayer
 import dev.lapislazuli.runtimes.jvm.core.host.HostRecipeIngredient
@@ -31,7 +34,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 class JsBridgeFactory {
-    fun createPluginContext(hostServices: HostServices): Any? {
+    fun createPluginContext(hostServices: HostServices, promiseConstructor: Value? = null): Any? {
         val root = linkedMapOf<String, Any?>()
         root["app"] = createApp(hostServices)
         root["commands"] = createCommands(hostServices)
@@ -49,6 +52,7 @@ class JsBridgeFactory {
         root["scoreboards"] = createScoreboards(hostServices)
         root["storage"] = createStorage(hostServices)
         root["config"] = createConfig(hostServices.config())
+        root["http"] = createHttp(hostServices.http(), promiseConstructor)
         root["unsafe"] = createUnsafe(hostServices)
         return toGuestValue(root)
     }
@@ -357,6 +361,36 @@ class JsBridgeFactory {
                 null
             },
             "keys" to executable { configStore.keys() },
+        )
+
+    private fun createHttp(httpService: HttpService, promiseConstructor: Value?): Map<String, Any?> =
+        mapOf(
+            "fetch" to executable { arguments ->
+                val request = parseHttpRequest(arguments)
+                if (promiseConstructor == null) {
+                    httpResponseObject(httpService.fetch(request))
+                } else {
+                    createPromise(promiseConstructor) { resolve, reject ->
+                        try {
+                            httpService.fetchAsync(
+                                request,
+                                onSuccess = Callback { payload ->
+                                    val response = payload as? HttpResponsePayload
+                                        ?: error("Expected an HTTP response payload.")
+                                    resolve.execute(toGuestValue(httpResponseObject(response)))
+                                    null
+                                },
+                                onError = Callback { payload ->
+                                    reject.execute(httpErrorMessage(payload))
+                                    null
+                                },
+                            )
+                        } catch (error: Exception) {
+                            reject.execute(error.message ?: error.toString())
+                        }
+                    }
+                }
+            },
         )
 
     private fun createUnsafe(hostServices: HostServices): Map<String, Any?> =
@@ -949,9 +983,19 @@ class JsBridgeFactory {
                         parseRecipeIngredient(
                             ingredientsValue.getArrayElement(elementIndex.toLong()),
                             "$name.ingredients[$elementIndex]",
-                        )
-                    },
                 )
+            },
+        )
+
+    private fun httpResponseObject(response: HttpResponsePayload): Map<String, Any?> =
+        mapOf(
+            "url" to response.url,
+            "status" to response.status,
+            "ok" to response.ok,
+            "headers" to response.headers,
+            "body" to response.body,
+            "text" to executable { response.body },
+        )
             }
             else -> error("Unsupported recipe kind \"$kind\".")
         }
@@ -963,6 +1007,49 @@ class JsBridgeFactory {
             value.hasMembers() || value.hasHashEntries() -> HostExactItemIngredient(parseItemSpec(value, name))
             else -> error("Expected recipe ingredient \"$name\" to be a material string or item spec.")
         }
+
+    private fun parseHttpRequest(arguments: Array<out Value>): HttpRequestSpec =
+        when {
+            arguments.isEmpty() -> error("http.fetch requires a URL or request definition.")
+            arguments[0].isString -> {
+                val url = arguments[0].asString()
+                val init = arguments.getOrNull(1)
+                HttpRequestSpec(
+                    url = url,
+                    method = init?.takeUnless(Value::isNull)
+                        ?.let { memberString(it, "method", required = false) }
+                        ?.uppercase()
+                        ?: "GET",
+                    headers = init?.takeUnless(Value::isNull)?.let { memberStringMap(it, "headers") } ?: emptyMap(),
+                    body = init?.takeUnless(Value::isNull)?.let { memberText(it, "body", required = false) },
+                )
+            }
+            else -> {
+                val value = arguments[0]
+                HttpRequestSpec(
+                    url = memberString(value, "url", required = true) ?: error("http.fetch requires a URL."),
+                    method = memberString(value, "method", required = false)?.uppercase() ?: "GET",
+                    headers = memberStringMap(value, "headers"),
+                    body = memberText(value, "body", required = false),
+                )
+            }
+        }
+
+    private fun createPromise(
+        promiseConstructor: Value,
+        executor: (resolve: Value, reject: Value) -> Unit,
+    ): Value =
+        promiseConstructor.newInstance(
+            executable { arguments ->
+                require(arguments.size >= 2) { "Promise executor requires resolve and reject callbacks." }
+                val resolve = arguments[0]
+                val reject = arguments[1]
+                requireExecutable(resolve, "resolve")
+                requireExecutable(reject, "reject")
+                executor(resolve, reject)
+                null
+            },
+        )
 
     private fun executable(executable: Executable): ProxyExecutable =
         ProxyExecutable { arguments ->
@@ -1067,6 +1154,32 @@ class JsBridgeFactory {
             }
             else -> require(false) { "Expected object field \"$field\"." }
         }
+        return result
+    }
+
+    private fun memberStringMap(value: Value, field: String): Map<String, String> {
+        val member = member(value, field) ?: return emptyMap()
+        if (member.isNull) {
+            return emptyMap()
+        }
+
+        val result = linkedMapOf<String, String>()
+        when {
+            member.hasMembers() -> {
+                member.memberKeys.forEach { key ->
+                    result[key] = textValue(requireNotNull(member.getMember(key)))
+                }
+            }
+            member.hasHashEntries() -> {
+                val iterator = member.hashEntriesIterator
+                while (iterator.hasIteratorNextElement()) {
+                    val entry = iterator.iteratorNextElement
+                    result[textValue(entry.getArrayElement(0))] = textValue(entry.getArrayElement(1))
+                }
+            }
+            else -> require(false) { "Expected object field \"$field\"." }
+        }
+
         return result
     }
 
@@ -1208,6 +1321,13 @@ class JsBridgeFactory {
 
         return value.toString()
     }
+
+    private fun httpErrorMessage(payload: Any?): String =
+        when (payload) {
+            null -> "HTTP request failed."
+            is Throwable -> payload.message ?: payload.toString()
+            else -> payload.toString()
+        }
 
     private fun invokeStaticMethod(type: Class<*>, methodName: String, arguments: Array<out Value>): Any? {
         val overloads = type.methods.filter { method ->

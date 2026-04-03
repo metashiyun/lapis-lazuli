@@ -56,4 +56,5 @@ PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 
 ## Docs
 
-Start with [docs/README.md](docs/README.md).
+- Docs site: [https://lapis.shiyun.org/docs](https://lapis.shiyun.org/docs)
+- Agent docs: [https://lapis.shiyun.org/agents/index.md](https://lapis.shiyun.org/agents/index.md)

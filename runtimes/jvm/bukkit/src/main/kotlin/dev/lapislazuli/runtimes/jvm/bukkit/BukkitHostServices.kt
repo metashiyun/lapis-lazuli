@@ -22,6 +22,9 @@ import dev.lapislazuli.runtimes.jvm.core.host.HostShapedRecipeSpec
 import dev.lapislazuli.runtimes.jvm.core.host.HostShapelessRecipeSpec
 import dev.lapislazuli.runtimes.jvm.core.host.HostServices
 import dev.lapislazuli.runtimes.jvm.core.host.HostWorld
+import dev.lapislazuli.runtimes.jvm.core.host.HttpRequestSpec
+import dev.lapislazuli.runtimes.jvm.core.host.HttpResponsePayload
+import dev.lapislazuli.runtimes.jvm.core.host.HttpService
 import dev.lapislazuli.runtimes.jvm.core.host.KeyValueStore
 import dev.lapislazuli.runtimes.jvm.core.host.Registration
 import dev.lapislazuli.runtimes.jvm.core.host.RuntimeLogger
@@ -70,11 +73,18 @@ import org.bukkit.scoreboard.Scoreboard
 import org.bukkit.scoreboard.Team
 import java.io.File
 import java.lang.reflect.Field
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.ArrayDeque
+import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
 import kotlin.math.floor
 
@@ -87,9 +97,15 @@ internal class BukkitHostServices(
     private val configFile: File = bundle.bundleDirectory.resolve("config.yml").toFile()
     private val storageFile: File = bundle.bundleDirectory.resolve("storage.yml").toFile()
     private val dataDirectory: Path = bundle.bundleDirectory.resolve("data")
+    private val httpClient: HttpClient = HttpClient.newBuilder()
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build()
+    private val pendingHttpRequests = Collections.newSetFromMap(ConcurrentHashMap<CompletableFuture<*>, Boolean>())
     private val registrations = ArrayDeque<AutoCloseable>()
     private val shutdownCallbacks = ArrayDeque<Callback>()
     private var scoreboardSequence = 0
+    @Volatile
+    private var closed = false
     private var configuration: YamlConfiguration
     private var storageConfiguration: YamlConfiguration
 
@@ -259,6 +275,46 @@ internal class BukkitHostServices(
                 Files.createDirectories(
                     if (relativePath.isBlank()) dataDirectory else resolvePath(relativePath),
                 )
+            }
+        }
+
+    override fun http(): HttpService =
+        object : HttpService {
+            override fun fetch(request: HttpRequestSpec): HttpResponsePayload =
+                toHttpResponsePayload(
+                    httpClient.send(
+                        toHttpRequest(request),
+                        HttpResponse.BodyHandlers.ofString(),
+                    ),
+                )
+
+            override fun fetchAsync(request: HttpRequestSpec, onSuccess: Callback, onError: Callback) {
+                val future = httpClient.sendAsync(
+                    toHttpRequest(request),
+                    HttpResponse.BodyHandlers.ofString(),
+                )
+                pendingHttpRequests += future
+                future.whenComplete { response, error ->
+                    pendingHttpRequests.remove(future)
+                    if (closed || future.isCancelled) {
+                        return@whenComplete
+                    }
+
+                    Bukkit.getScheduler().runTask(plugin, Runnable {
+                        if (closed || future.isCancelled) {
+                            return@Runnable
+                        }
+
+                        if (error != null) {
+                            onError.invoke(error.cause ?: error)
+                            return@Runnable
+                        }
+
+                        val resolvedResponse = response
+                            ?: error("Expected an HTTP response.")
+                        onSuccess.invoke(toHttpResponsePayload(resolvedResponse))
+                    })
+                }
             }
         }
 
@@ -435,6 +491,10 @@ internal class BukkitHostServices(
     override fun broadcastMessage(message: String): Int = plugin.server.broadcastMessage(message)
 
     override fun close() {
+        closed = true
+        pendingHttpRequests.forEach { it.cancel(true) }
+        pendingHttpRequests.clear()
+
         while (shutdownCallbacks.isNotEmpty()) {
             runCatching { shutdownCallbacks.removeFirst().invoke(null) }
                 .onFailure { error -> logger.error("Shutdown callback failed for bundle ${bundle.manifest.id}.", error) }
@@ -445,6 +505,28 @@ internal class BukkitHostServices(
                 .onFailure { error -> logger.error("Failed to clean up bundle resources.", error) }
         }
     }
+
+    private fun toHttpRequest(request: HttpRequestSpec): HttpRequest {
+        val builder = HttpRequest.newBuilder()
+            .uri(URI.create(request.url))
+
+        request.headers.forEach { (name, value) ->
+            builder.header(name, value)
+        }
+
+        val bodyPublisher = request.body?.let(HttpRequest.BodyPublishers::ofString)
+            ?: HttpRequest.BodyPublishers.noBody()
+        builder.method(request.method.uppercase(), bodyPublisher)
+        return builder.build()
+    }
+
+    private fun toHttpResponsePayload(response: HttpResponse<String>): HttpResponsePayload =
+        HttpResponsePayload(
+            url = response.uri().toString(),
+            status = response.statusCode(),
+            headers = response.headers().map().mapValues { (_, values) -> values.joinToString(", ") },
+            body = response.body(),
+        )
 
     internal fun wrapPlayer(player: Player): HostPlayer = BukkitPlayerHandle(player)
 

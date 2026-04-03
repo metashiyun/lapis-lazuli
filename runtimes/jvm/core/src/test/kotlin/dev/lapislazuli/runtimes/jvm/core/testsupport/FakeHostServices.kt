@@ -16,10 +16,17 @@ import dev.lapislazuli.runtimes.jvm.core.host.HostRecipeSpec
 import dev.lapislazuli.runtimes.jvm.core.host.HostScoreboard
 import dev.lapislazuli.runtimes.jvm.core.host.HostServices
 import dev.lapislazuli.runtimes.jvm.core.host.HostWorld
+import dev.lapislazuli.runtimes.jvm.core.host.HttpRequestSpec
+import dev.lapislazuli.runtimes.jvm.core.host.HttpResponsePayload
+import dev.lapislazuli.runtimes.jvm.core.host.HttpService
 import dev.lapislazuli.runtimes.jvm.core.host.KeyValueStore
 import dev.lapislazuli.runtimes.jvm.core.host.Registration
 import dev.lapislazuli.runtimes.jvm.core.host.RuntimeLogger
 import dev.lapislazuli.runtimes.jvm.core.host.TaskHandle
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
@@ -166,6 +173,27 @@ class FakeHostServices(
                 Files.createDirectories(
                     if (relativePath.isBlank()) dataRoot else dataRoot.resolve(relativePath),
                 )
+            }
+        }
+
+    override fun http(): HttpService =
+        object : HttpService {
+            private val client = HttpClient.newHttpClient()
+
+            override fun fetch(request: HttpRequestSpec): HttpResponsePayload =
+                toHttpResponsePayload(
+                    client.send(
+                        toHttpRequest(request),
+                        HttpResponse.BodyHandlers.ofString(),
+                    ),
+                )
+
+            override fun fetchAsync(request: HttpRequestSpec, onSuccess: Callback, onError: Callback) {
+                try {
+                    onSuccess.invoke(fetch(request))
+                } catch (error: Exception) {
+                    onError.invoke(error)
+                }
             }
         }
 
@@ -331,6 +359,28 @@ class FakeHostServices(
 
             override fun keys(): List<String> = backing.keys.toList()
         }
+
+    private fun toHttpRequest(request: HttpRequestSpec): HttpRequest {
+        val builder = HttpRequest.newBuilder()
+            .uri(URI.create(request.url))
+
+        request.headers.forEach { (name, value) ->
+            builder.header(name, value)
+        }
+
+        val bodyPublisher = request.body?.let(HttpRequest.BodyPublishers::ofString)
+            ?: HttpRequest.BodyPublishers.noBody()
+        builder.method(request.method.uppercase(), bodyPublisher)
+        return builder.build()
+    }
+
+    private fun toHttpResponsePayload(response: HttpResponse<String>): HttpResponsePayload =
+        HttpResponsePayload(
+            url = response.uri().toString(),
+            status = response.statusCode(),
+            headers = response.headers().map().mapValues { (_, values) -> values.joinToString(", ") },
+            body = response.body(),
+        )
 
     data class PlayedSound(
         val target: String,

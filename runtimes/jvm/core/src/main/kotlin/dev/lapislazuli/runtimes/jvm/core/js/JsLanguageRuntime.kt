@@ -24,7 +24,10 @@ class JsLanguageRuntime(
             .allowAllAccess(true)
             .build()
 
-        val pluginContext = bridgeFactory.createPluginContext(hostServices)
+        val pluginContext = bridgeFactory.createPluginContext(
+            hostServices = hostServices,
+            promiseConstructor = context.eval("js", "Promise"),
+        )
         val sourceText = Files.readString(bundle.mainFile)
         val wrappedSource = wrapCommonJs(sourceText)
         val exports = context.eval(
