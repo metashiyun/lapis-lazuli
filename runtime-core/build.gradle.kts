@@ -5,6 +5,7 @@ plugins {
 dependencies {
     api("org.graalvm.polyglot:polyglot:24.2.1")
     implementation("org.graalvm.js:js-community:24.2.1")
+    implementation("org.graalvm.polyglot:python:24.2.1")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 
