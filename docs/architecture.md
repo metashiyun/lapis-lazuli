@@ -31,7 +31,10 @@ Lapis Lazuli has four main layers:
 
 ### `lapis-lazuli`
 
-The SDK is the public authoring contract. It defines:
+`lapis-lazuli` is the public SDK package name on both npm and PyPI. For Python, the
+import path remains `lapis_lazuli`.
+
+The SDK defines:
 
 - `definePlugin(...)`
 - lifecycle types
@@ -41,7 +44,7 @@ The SDK is the public authoring contract. It defines:
 
 ### `create-lapis-lazuli`
 
-The CLI drives local authoring:
+`create-lapis-lazuli` is the published npm CLI package. It drives local authoring:
 
 - `create`
 - `validate`

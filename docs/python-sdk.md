@@ -1,9 +1,9 @@
 # Python SDK
 
-Package name:
+PyPI package:
 
-```py
-lapis-lazuli
+```sh
+python -m pip install lapis-lazuli
 ```
 
 Import path:
@@ -15,6 +15,8 @@ lapis_lazuli
 The Python SDK is the public Python authoring surface for Lapis Lazuli. It wraps the
 shared runtime capability layer with Python-first conventions instead of mirroring the
 TypeScript API verbatim.
+
+The distribution name is `lapis-lazuli`. The import path remains `lapis_lazuli`.
 
 ## Minimal Example
 
@@ -47,8 +49,8 @@ def on_enable(context):
 
 ## Packaging And Bundling
 
-The CLI can scaffold Python projects with `pyproject.toml` metadata and bundles the
-workspace `lapis_lazuli` package into Python bundles for repo-local development.
+The CLI scaffolds Python projects with `pyproject.toml` metadata and stages
+`lapis_lazuli` into deployable bundles when needed.
 
-That keeps Python bundles self-contained without requiring a published package during
-local iteration.
+That keeps deployed Python bundles self-contained while authoring still starts from the
+published PyPI package.

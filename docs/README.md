@@ -2,6 +2,13 @@
 
 This directory contains the current technical docs for Lapis Lazuli.
 
+Published package names:
+
+- npm SDK: `lapis-lazuli`
+- npm CLI: `create-lapis-lazuli`
+- PyPI SDK: `lapis-lazuli`
+- Python import path: `lapis_lazuli`
+
 ## Start Here
 
 - [../README.md](../README.md): repo overview

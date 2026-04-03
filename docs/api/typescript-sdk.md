@@ -1,9 +1,9 @@
 # TypeScript SDK
 
-Package name:
+npm package:
 
-```ts
-lapis-lazuli
+```sh
+npm install lapis-lazuli
 ```
 
 The SDK is the public TypeScript authoring surface for Lapis Lazuli. It is service-first

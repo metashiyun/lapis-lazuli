@@ -19,6 +19,9 @@ python -m pip install lapis-lazuli
 npx create-lapis-lazuli my-plugin
 ```
 
+`lapis-lazuli` is published on both npm and PyPI. The Python import path stays
+`lapis_lazuli`.
+
 ## Quick Start
 
 Install dependencies and build the runtime:
@@ -32,16 +35,14 @@ Create a plugin project:
 
 ```sh
 npx create-lapis-lazuli /absolute/path/to/my-plugin
-# or, from source:
-bun tooling/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
-bun tooling/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
+npx create-lapis-lazuli /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
 Validate and bundle it:
 
 ```sh
-bun tooling/cli/src/index.ts validate /absolute/path/to/my-plugin
-bun tooling/cli/src/index.ts bundle /absolute/path/to/my-plugin
+npx create-lapis-lazuli validate /absolute/path/to/my-plugin
+npx create-lapis-lazuli bundle /absolute/path/to/my-plugin
 ```
 
 Copy these into your server:

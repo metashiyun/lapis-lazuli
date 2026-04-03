@@ -6,6 +6,13 @@ Lazuli plugin.
 The validated server target is Paper, but the SDK is being designed around
 Bukkit-common capabilities.
 
+Published packages:
+
+- npm SDK: `lapis-lazuli`
+- npm CLI: `create-lapis-lazuli`
+- PyPI SDK: `lapis-lazuli`
+- Python import path: `lapis_lazuli`
+
 ## 1. Prepare The Workspace
 
 ```sh
@@ -16,9 +23,8 @@ bun install
 ## 2. Create A Plugin
 
 ```sh
-bun tooling/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
-# or
-bun tooling/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
+npx create-lapis-lazuli /absolute/path/to/my-plugin
+npx create-lapis-lazuli /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
 ## 3. Implement The Plugin
@@ -56,11 +62,18 @@ def on_enable(context):
     context.app.log.info("My Python Plugin enabled.")
 ```
 
+If you are authoring outside this monorepo, install the SDKs from the public registries:
+
+```sh
+npm install lapis-lazuli
+python -m pip install lapis-lazuli
+```
+
 ## 4. Validate And Bundle
 
 ```sh
-bun tooling/cli/src/index.ts validate /absolute/path/to/my-plugin
-bun tooling/cli/src/index.ts bundle /absolute/path/to/my-plugin
+npx create-lapis-lazuli validate /absolute/path/to/my-plugin
+npx create-lapis-lazuli bundle /absolute/path/to/my-plugin
 ```
 
 The deployable bundle is written under `dist/<plugin-id>/`.
