@@ -1,6 +1,9 @@
+import path from "node:path";
+
 const REPO_BASE_URL = "https://github.com/metashiyun/lapis-lazuli";
 const DOCS_BASE_URL = `${REPO_BASE_URL}/tree/main/docs`;
 const DOCS_PREFIX = "../../../../docs/";
+const HOME_DOC_REPO_PATH = "README.md";
 
 const DOC_GROUPS = [
   {
@@ -46,9 +49,22 @@ const DOC_CONFIG: Record<string, DocConfig> = {
 export type DocEntry = {
   group: DocGroupId;
   groupLabel: string;
+  markdownUrl: string;
   order: number;
   repoPath: string;
+  raw: string;
   slug: string;
+  sourceUrl: string;
+  title: string;
+  description: string;
+  url: string;
+  Content: any;
+};
+
+export type DocsHomeEntry = {
+  markdownUrl: string;
+  repoPath: string;
+  raw: string;
   sourceUrl: string;
   title: string;
   description: string;
@@ -60,11 +76,11 @@ export type DocGroup = (typeof DOC_GROUPS)[number] & {
   docs: DocEntry[];
 };
 
-const compiledDocModules = import.meta.glob("../../../../docs/**/*.md", {
+const compiledDocModules = import.meta.glob("../../../../docs/**/*.{md,mdx}", {
   eager: true
 }) as Record<string, MarkdownModule>;
 
-const rawDocModules = import.meta.glob("../../../../docs/**/*.md", {
+const rawDocModules = import.meta.glob("../../../../docs/**/*.{md,mdx}", {
   eager: true,
   import: "default",
   query: "?raw"
@@ -79,11 +95,95 @@ function toRepoPath(modulePath: string) {
 }
 
 function toSlug(repoPath: string) {
-  return repoPath.replace(/\.md$/, "");
+  return repoPath.replace(/\.(md|mdx)$/, "");
 }
 
 function toUrl(slug: string) {
   return `/docs/${slug}.md`;
+}
+
+function toMarkdownUrl(slug: string) {
+  return `/agents/${slug}.md`;
+}
+
+function splitHref(href: string) {
+  const match = href.match(/^([^?#]*)(.*)$/);
+
+  return {
+    pathname: match?.[1] ?? href,
+    suffix: match?.[2] ?? ""
+  };
+}
+
+function isAbsoluteHref(pathname: string) {
+  return (
+    pathname.length === 0 ||
+    pathname.startsWith("/") ||
+    pathname.startsWith("#") ||
+    pathname.startsWith("?") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(pathname)
+  );
+}
+
+function toDocsRouteFromRepoPath(repoPath: string) {
+  if (!repoPath.startsWith("docs/")) {
+    return null;
+  }
+
+  const docsPath = repoPath.slice("docs/".length);
+
+  if (/^README\.(md|mdx)$/i.test(docsPath)) {
+    return "/docs";
+  }
+
+  return toUrl(toSlug(docsPath));
+}
+
+function toAgentsRouteFromRepoPath(repoPath: string) {
+  if (!repoPath.startsWith("docs/")) {
+    return null;
+  }
+
+  const docsPath = repoPath.slice("docs/".length);
+
+  if (/^README\.(md|mdx)$/i.test(docsPath)) {
+    return "/agents/index.md";
+  }
+
+  return toMarkdownUrl(toSlug(docsPath));
+}
+
+function rewriteMarkdownHref(repoPath: string, href: string, target: "agents" | "docs") {
+  const { pathname, suffix } = splitHref(href);
+
+  if (isAbsoluteHref(pathname)) {
+    return href;
+  }
+
+  const sourcePath = `docs/${repoPath}`;
+  const resolvedRepoPath = path.posix.normalize(
+    path.posix.join(path.posix.dirname(sourcePath), pathname)
+  );
+  const docsRoute =
+    target === "docs"
+      ? toDocsRouteFromRepoPath(resolvedRepoPath)
+      : toAgentsRouteFromRepoPath(resolvedRepoPath);
+
+  if (docsRoute) {
+    return `${docsRoute}${suffix}`;
+  }
+
+  return `${REPO_BASE_URL}/blob/main/${resolvedRepoPath}${suffix}`;
+}
+
+function rewriteMarkdownLinks(raw: string, repoPath: string, target: "agents" | "docs") {
+  return raw.replace(/(!)?\[([^\]]+)\]\(([^)]+)\)/g, (match, image, label, href) => {
+    if (image) {
+      return match;
+    }
+
+    return `[${label}](${rewriteMarkdownHref(repoPath, href, target)})`;
+  });
 }
 
 function stripMarkdown(text: string) {
@@ -105,7 +205,7 @@ function extractTitle(raw: string, repoPath: string) {
   }
 
   return repoPath
-    .replace(/\.md$/, "")
+    .replace(/\.(md|mdx)$/, "")
     .split("/")
     .at(-1)
     ?.split("-")
@@ -173,38 +273,59 @@ function inferConfig(repoPath: string): DocConfig {
   return { group: "guides", order: 900 };
 }
 
-const docs = Object.entries(compiledDocModules)
-  .map(([modulePath, module]) => {
-    const repoPath = toRepoPath(modulePath);
+const docSources = Object.entries(compiledDocModules).map(([modulePath, module]) => {
+  const repoPath = toRepoPath(modulePath);
+  const raw = rawDocModules[modulePath] ?? "";
+  const slug = toSlug(repoPath);
 
-    if (repoPath === "README.md") {
-      return null;
-    }
+  return {
+    repoPath,
+    raw,
+    slug,
+    sourceUrl: `${REPO_BASE_URL}/blob/main/docs/${repoPath}`,
+    title: extractTitle(raw, repoPath),
+    description: extractDescription(raw),
+    Content: module.default
+  };
+});
 
-    const raw = rawDocModules[modulePath] ?? "";
-    const config = inferConfig(repoPath);
+const docsHomeSource = docSources.find((doc) => doc.repoPath === HOME_DOC_REPO_PATH);
+
+if (!docsHomeSource) {
+  throw new Error(`Unable to resolve docs home source "${HOME_DOC_REPO_PATH}".`);
+}
+
+const docsHome = {
+  ...docsHomeSource,
+  markdownUrl: "/agents/index.md",
+  url: "/docs"
+} satisfies DocsHomeEntry;
+
+const docs = docSources
+  .filter((doc) => doc.repoPath !== HOME_DOC_REPO_PATH)
+  .map((doc) => {
+    const config = inferConfig(doc.repoPath);
     const group = groupLookup.get(config.group);
 
     if (!group) {
-      throw new Error(`Unknown docs group for ${repoPath}`);
+      throw new Error(`Unknown docs group for ${doc.repoPath}`);
     }
-
-    const slug = toSlug(repoPath);
 
     return {
       group: config.group,
       groupLabel: group.label,
+      markdownUrl: toMarkdownUrl(doc.slug),
       order: config.order,
-      repoPath,
-      slug,
-      sourceUrl: `${REPO_BASE_URL}/blob/main/docs/${repoPath}`,
-      title: extractTitle(raw, repoPath),
-      description: extractDescription(raw),
-      url: toUrl(slug),
-      Content: module.default
+      repoPath: doc.repoPath,
+      raw: doc.raw,
+      slug: doc.slug,
+      sourceUrl: doc.sourceUrl,
+      title: doc.title,
+      description: doc.description,
+      url: toUrl(doc.slug),
+      Content: doc.Content
     } satisfies DocEntry;
   })
-  .filter((doc): doc is DocEntry => doc !== null)
   .sort((left, right) => left.order - right.order || left.title.localeCompare(right.title));
 
 const docsBySlug = new Map(docs.map((doc) => [doc.slug, doc]));
@@ -214,6 +335,37 @@ export const repoDocsUrl = DOCS_BASE_URL;
 
 export function getDocs() {
   return docs;
+}
+
+export function getDocsHome() {
+  return docsHome;
+}
+
+export function getRenderedMarkdown(repoPath: string, raw: string, target: "agents" | "docs") {
+  return rewriteMarkdownLinks(raw, repoPath, target);
+}
+
+export function getAgentsIndexMarkdown() {
+  const intro = getRenderedMarkdown(docsHome.repoPath, docsHome.raw, "agents").trimEnd();
+  const groups = getDocsByGroup()
+    .map((group) => {
+      const items = group.docs
+        .map((doc) => `- [${doc.title}](${doc.markdownUrl}): ${doc.description}`)
+        .join("\n");
+
+      return `## ${group.label}\n\n${items}`;
+    })
+    .join("\n\n");
+
+  return [
+    intro,
+    "",
+    "## Pages",
+    "",
+    "- [Overview](/agents/index.md): index and package names.",
+    "",
+    groups
+  ].join("\n");
 }
 
 export function getDocsByGroup() {

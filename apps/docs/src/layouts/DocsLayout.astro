@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
-import { getDocsByGroup, repoDocsUrl } from "../lib/docs";
+import { getDocsByGroup } from "../lib/docs";
 
 interface Props {
   title?: string;
@@ -15,28 +15,21 @@ const {
 } = Astro.props;
 
 const navGroups = getDocsByGroup();
-const docsIsActive = currentPath.startsWith("/docs");
 ---
 
 <BaseLayout title={title} description={description} pageClass="docs-page">
   <div class="docs-app">
-    <header class="docs-topbar">
-      <a class="docs-brand" href="/">Lapis Lazuli</a>
+    <aside class="docs-sidebar" aria-label="Documentation navigation">
+      <div class="docs-sidebar-header">
+        <a class="docs-brand" href="/">Lapis Lazuli</a>
+      </div>
 
-      <nav class="docs-primary-nav" aria-label="Primary">
-        <a class:list={["docs-toplink", docsIsActive && "active"]} href="/docs">Docs</a>
-        <a class="docs-toplink" href="/">Home</a>
-        <a class="docs-toplink" href="https://github.com/metashiyun/lapis-lazuli">GitHub</a>
-      </nav>
-    </header>
-
-    <div class="docs-frame">
-      <aside class="docs-sidebar" aria-label="Documentation navigation">
+      <div class="docs-nav-stack">
         <a
           class:list={["docs-sidebar-home", currentPath === "/docs" && "active"]}
           href="/docs"
         >
-          Documentation Index
+          Overview
         </a>
 
         {navGroups.map((group) => (
@@ -58,13 +51,16 @@ const docsIsActive = currentPath.startsWith("/docs");
             </ul>
           </section>
         ))}
+      </div>
 
-        <a class="docs-source-link" href={repoDocsUrl}>Browse raw docs</a>
-      </aside>
+      <div class="docs-sidebar-footer">
+        <a class="docs-utility-link" href="/agents/index.md">Agents</a>
+        <a class="docs-utility-link" href="https://github.com/metashiyun/lapis-lazuli">GitHub</a>
+      </div>
+    </aside>
 
-      <main class="docs-main">
-        <slot />
-      </main>
-    </div>
+    <main class="docs-main">
+      <slot />
+    </main>
   </div>
 </BaseLayout>

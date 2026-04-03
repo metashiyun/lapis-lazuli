@@ -1,6 +1,8 @@
 # Documentation
 
-This directory contains the current technical docs for Lapis Lazuli.
+Technical docs for the runtime, SDKs, CLI, and plugin authoring workflow.
+
+Use the sidebar to move between guides and reference pages.
 
 Published package names:
 
@@ -8,22 +10,3 @@ Published package names:
 - npm CLI: `create-lapis-lazuli`
 - PyPI SDK: `lapis-lazuli`
 - Python import path: `lapis_lazuli`
-
-## Start Here
-
-- [../README.md](../README.md): repo overview
-- [architecture.md](architecture.md): layers and runtime flow
-- [compatibility.md](compatibility.md): current support envelope
-
-## API Reference
-
-- [api/runtime-host-api.md](api/runtime-host-api.md): runtime context exposed to bundles
-- [api/typescript-sdk.md](api/typescript-sdk.md): public `lapis-lazuli` contract
-- [cli.md](cli.md): CLI commands
-- [bundle-format.md](bundle-format.md): manifest and bundle layout
-- [python-sdk.md](python-sdk.md): public Python SDK
-
-## Guides
-
-- [authoring.md](authoring.md): create, build, bundle, and install plugins
-- [testing.md](testing.md): validation strategy

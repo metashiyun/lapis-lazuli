@@ -29,11 +29,9 @@ const Content = doc.Content;
 >
   <article class="docs-article">
     <header class="docs-article-meta">
-      <p class="docs-kicker">{doc.groupLabel}</p>
-
-      <div class="docs-meta-links">
-        <a href="/docs">Back to docs</a>
-        <a href={doc.sourceUrl}>View source</a>
+      <div class="docs-meta-links docs-page-actions">
+        <a href={doc.markdownUrl}>Markdown</a>
+        <a href={doc.sourceUrl}>Source</a>
       </div>
     </header>
 

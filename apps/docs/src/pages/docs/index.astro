@@ -1,63 +1,36 @@
 ---
 import DocsLayout from "../../layouts/DocsLayout.astro";
-import { getDocsByGroup, repoBaseUrl, repoDocsUrl } from "../../lib/docs";
+import { getDocs, getDocsHome } from "../../lib/docs";
 
-const docGroups = getDocsByGroup();
-
-const quickLinks = [
-  {
-    label: "Project home",
-    href: "/"
-  },
-  {
-    label: "Repository README",
-    href: `${repoBaseUrl}/blob/main/README.md`
-  },
-  {
-    label: "Raw docs directory",
-    href: repoDocsUrl
-  }
-];
+const doc = getDocsHome();
+const [nextDoc] = getDocs();
+const Content = doc.Content;
 ---
 
 <DocsLayout
-  title="Documentation | Lapis Lazuli"
-  description="Technical docs for the runtime, SDKs, CLI, and plugin authoring workflow."
+  title={`${doc.title} | Lapis Lazuli Docs`}
+  description={doc.description}
   currentPath="/docs"
 >
-  <section class="docs-home">
-    <div class="docs-home-intro">
-      <p class="docs-kicker">Documentation</p>
-      <h1>Runtime notes, API reference, and authoring guides in one place.</h1>
-      <p class="docs-home-copy">
-        This site exposes the Markdown docs from the repository itself, grouped by the way
-        plugin authors usually move through the project: orientation first, contract
-        details next, then end-to-end workflow guidance.
-      </p>
+  <article class="docs-article docs-doc-home">
+    <header class="docs-article-meta">
+      <div class="docs-meta-links docs-page-actions">
+        <a href={doc.markdownUrl}>Markdown</a>
+        <a href={doc.sourceUrl}>Source</a>
+      </div>
+    </header>
+
+    <div class="docs-prose">
+      <Content />
     </div>
 
-    <div class="docs-quick-links">
-      {quickLinks.map((link) => (
-        <a class="docs-quick-link" href={link.href}>{link.label}</a>
-      ))}
-    </div>
-
-    <div class="docs-section-grid">
-      {docGroups.map((group) => (
-        <section class="docs-section-card">
-          <p class="docs-kicker">{group.label}</p>
-          <h2>{group.description}</h2>
-
-          <div class="docs-link-list">
-            {group.docs.map((doc) => (
-              <a class="docs-link-card" href={doc.url}>
-                <span class="docs-link-title">{doc.title}</span>
-                <span class="docs-link-copy">{doc.description}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  </section>
+    {nextDoc && (
+      <nav class="docs-article-pager" aria-label="Document pagination">
+        <a class="docs-pager-link" href={nextDoc.url}>
+          <span>Next</span>
+          <strong>{nextDoc.title}</strong>
+        </a>
+      </nav>
+    )}
+  </article>
 </DocsLayout>

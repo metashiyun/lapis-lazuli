@@ -11,6 +11,7 @@
     "deploy": "astro build && node ../../scripts/deploy-docs-to-cloudflare.mjs"
   },
   "devDependencies": {
+    "@astrojs/mdx": "^5.0.3",
     "astro": "^5.13.0",
     "wrangler": "^4.45.0"
   }
