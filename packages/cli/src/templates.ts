@@ -102,7 +102,9 @@ export const GITIGNORE = `dist
 .lapis
 node_modules
 .venv
+venv
 __pycache__
 .mypy_cache
 .pytest_cache
+.ruff_cache
 `;
