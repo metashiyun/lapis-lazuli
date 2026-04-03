@@ -21,6 +21,7 @@ class JsBridgeFactory {
         root["scheduler"] = createScheduler(hostServices)
         root["config"] = createConfig(hostServices.config())
         root["dataDir"] = createDataDir(hostServices.dataDirectory())
+        root["server"] = createServer(hostServices)
         root["javaInterop"] = createJavaInterop(hostServices)
         return toGuestValue(root)
     }
@@ -55,6 +56,24 @@ class JsBridgeFactory {
                 requireExecutable(handler, "handler")
 
                 val registration = hostServices.registerEvent(eventKey) { payload ->
+                    executeCallback(handler, payload)
+                }
+
+                mapOf(
+                    "unsubscribe" to executable {
+                        registration.unregister()
+                        null
+                    },
+                )
+            },
+            "onJava" to executable { arguments ->
+                require(arguments.size >= 2) { "events.onJava requires an event class name and handler." }
+
+                val eventClassName = stringArg(arguments, 0, "eventClassName")
+                val handler = arguments[1]
+                requireExecutable(handler, "handler")
+
+                val registration = hostServices.registerJavaEvent(eventClassName) { payload ->
                     executeCallback(handler, payload)
                 }
 
@@ -156,6 +175,19 @@ class JsBridgeFactory {
                     if (arguments.isNotEmpty()) stringArg(arguments, 0, "relativePath") else "",
                 )
                 null
+            },
+        )
+
+    private fun createServer(hostServices: HostServices): Map<String, Any?> =
+        mapOf(
+            "bukkit" to hostServices.serverHandle(),
+            "plugin" to hostServices.pluginHandle(),
+            "console" to hostServices.consoleSenderHandle(),
+            "dispatchCommand" to executable { arguments ->
+                hostServices.dispatchConsoleCommand(stringArg(arguments, 0, "command"))
+            },
+            "broadcast" to executable { arguments ->
+                hostServices.broadcastMessage(stringArg(arguments, 0, "message"))
             },
         )
 

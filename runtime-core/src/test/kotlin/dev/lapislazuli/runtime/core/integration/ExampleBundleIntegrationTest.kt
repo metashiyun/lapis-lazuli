@@ -43,6 +43,7 @@ class ExampleBundleIntegrationTest {
                     "name" to "Alice",
                     "type" to "player",
                     "uuid" to "1234",
+                    "javaHandle" to Any(),
                     "sendMessage" to Callback { payload ->
                         hostServices.sentMessages += payload.toString()
                         null
@@ -130,6 +131,8 @@ class ExampleBundleIntegrationTest {
             return Registration {}
         }
 
+        override fun registerJavaEvent(eventClassName: String, handler: Callback): Registration = Registration {}
+
         override fun runNow(task: Callback): TaskHandle = TaskHandle {}
 
         override fun runLater(delayTicks: Long, task: Callback): TaskHandle = TaskHandle {}
@@ -177,6 +180,16 @@ class ExampleBundleIntegrationTest {
             }
 
         override fun javaType(className: String): Class<*> = Class.forName(className)
+
+        override fun serverHandle(): Any = Any()
+
+        override fun pluginHandle(): Any = Any()
+
+        override fun consoleSenderHandle(): Any = Any()
+
+        override fun dispatchConsoleCommand(command: String): Boolean = true
+
+        override fun broadcastMessage(message: String): Int = 0
 
         override fun close() {
         }

@@ -16,6 +16,9 @@ interface HostServices : AutoCloseable {
     fun registerEvent(eventKey: String, handler: Callback): Registration
 
     @Throws(Exception::class)
+    fun registerJavaEvent(eventClassName: String, handler: Callback): Registration
+
+    @Throws(Exception::class)
     fun runNow(task: Callback): TaskHandle
 
     @Throws(Exception::class)
@@ -31,7 +34,18 @@ interface HostServices : AutoCloseable {
     @Throws(Exception::class)
     fun javaType(className: String): Class<*>
 
+    fun serverHandle(): Any
+
+    fun pluginHandle(): Any
+
+    fun consoleSenderHandle(): Any
+
+    @Throws(Exception::class)
+    fun dispatchConsoleCommand(command: String): Boolean
+
+    @Throws(Exception::class)
+    fun broadcastMessage(message: String): Int
+
     @Throws(Exception::class)
     override fun close()
 }
-

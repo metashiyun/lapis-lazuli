@@ -58,6 +58,7 @@ export interface PluginContext {
   scheduler: Scheduler;
   config: ConfigStore;
   dataDir: DataDirectory;
+  server: ServerBridge;
   javaInterop: JavaInterop;
 }
 ```
@@ -86,6 +87,7 @@ export interface CommandSender {
   name: string;
   type: "player" | "console" | "other";
   uuid?: string;
+  javaHandle?: unknown;
   sendMessage(message: string): void;
 }
 
@@ -117,6 +119,8 @@ export interface PlayerJoinEvent {
   type: "playerJoin";
   playerName: string;
   playerUuid: string;
+  playerHandle?: unknown;
+  javaEvent?: unknown;
   joinMessage?: string | null;
 }
 
@@ -124,12 +128,15 @@ export interface PlayerQuitEvent {
   type: "playerQuit";
   playerName: string;
   playerUuid: string;
+  playerHandle?: unknown;
+  javaEvent?: unknown;
   quitMessage?: string | null;
 }
 
 export interface ServerLoadEvent {
   type: "serverLoad";
   reload: boolean;
+  javaEvent?: unknown;
 }
 
 export interface EventMap {
@@ -143,10 +150,15 @@ export interface EventRegistry {
     event: K,
     handler: (payload: EventMap[K]) => Awaitable<void>,
   ): HookHandle;
+  onJava<T = unknown>(
+    eventClassName: string,
+    handler: (payload: T) => Awaitable<void>,
+  ): HookHandle;
 }
 ```
 
-Only these events are typed today.
+Only these three event keys are typed today, but `onJava(...)` lets plugins subscribe to
+arbitrary JVM event classes immediately.
 
 ## Scheduler Types
 
@@ -184,6 +196,18 @@ export interface DataDirectory {
   writeText(relativePath: string, contents: string): void;
   exists(relativePath: string): boolean;
   mkdirs(relativePath?: string): void;
+}
+```
+
+## Server Bridge Type
+
+```ts
+export interface ServerBridge {
+  bukkit: unknown;
+  plugin: unknown;
+  console: unknown;
+  dispatchCommand(command: string): boolean;
+  broadcast(message: string): number;
 }
 ```
 

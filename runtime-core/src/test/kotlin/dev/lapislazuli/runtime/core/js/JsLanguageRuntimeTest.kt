@@ -38,13 +38,22 @@ class JsLanguageRuntimeTest {
                       context.commands.register({
                         name: "hello",
                         execute({ sender }) {
+                          if (!sender.javaHandle) {
+                            throw new Error("Missing sender handle");
+                          }
                           sender.sendMessage("Hello " + sender.name);
                           return true;
                         },
                       });
                       context.events.on("playerJoin", (event) => {
-                        context.logger.info("join:" + event.playerName);
+                        context.logger.info("join:" + event.playerName + ":" + Boolean(event.playerHandle) + ":" + Boolean(event.javaEvent));
                       });
+                      context.events.onJava("org.bukkit.event.player.PlayerJoinEvent", (event) => {
+                        context.logger.info("java:" + event.name);
+                      });
+                      context.server.dispatchCommand("say hello");
+                      context.server.broadcast("broadcast hello");
+                      context.logger.info("server:" + Boolean(context.server.bukkit) + ":" + Boolean(context.server.plugin) + ":" + Boolean(context.server.console));
                     },
                     onDisable(context) {
                       context.logger.info("disabled");
@@ -74,7 +83,13 @@ class JsLanguageRuntimeTest {
 
         assertEquals("Hello", hostServices.configValues["message"])
         assertTrue(Files.exists(tempDir.resolve("data").resolve("hello.txt")))
-        assertEquals(listOf("enabled"), hostServices.logMessages)
+        assertEquals(
+            listOf("enabled", "server:true:true:true"),
+            hostServices.logMessages,
+        )
+        assertEquals(listOf("say hello"), hostServices.dispatchedCommands)
+        assertEquals(listOf("broadcast hello"), hostServices.broadcastMessages)
+        assertEquals("org.bukkit.event.player.PlayerJoinEvent", hostServices.javaEventClassName)
 
         val result = hostServices.commandCallback.invoke(
             mapOf(
@@ -82,6 +97,7 @@ class JsLanguageRuntimeTest {
                     "name" to "Alice",
                     "type" to "player",
                     "uuid" to "1234",
+                    "javaHandle" to Any(),
                     "sendMessage" to Callback { payload ->
                         hostServices.sentMessages += payload.toString()
                         null
@@ -95,11 +111,24 @@ class JsLanguageRuntimeTest {
         assertEquals(true, result)
         assertEquals(listOf("Hello Alice"), hostServices.sentMessages)
 
-        hostServices.eventCallback.invoke(mapOf("playerName" to "Bob"))
-        assertEquals(listOf("enabled", "join:Bob"), hostServices.logMessages)
+        hostServices.eventCallback.invoke(
+            mapOf(
+                "playerName" to "Bob",
+                "playerHandle" to Any(),
+                "javaEvent" to Any(),
+            ),
+        )
+        hostServices.javaEventCallback.invoke(mapOf("name" to "BobEvent"))
+        assertEquals(
+            listOf("enabled", "server:true:true:true", "join:Bob:true:true", "java:BobEvent"),
+            hostServices.logMessages,
+        )
 
         plugin.close()
-        assertEquals(listOf("enabled", "join:Bob", "disabled"), hostServices.logMessages)
+        assertEquals(
+            listOf("enabled", "server:true:true:true", "join:Bob:true:true", "java:BobEvent", "disabled"),
+            hostServices.logMessages,
+        )
     }
 
     private class FakeHostServices(
@@ -108,8 +137,12 @@ class JsLanguageRuntimeTest {
         val configValues = linkedMapOf<String, Any?>()
         val logMessages = mutableListOf<String>()
         val sentMessages = mutableListOf<String>()
+        val dispatchedCommands = mutableListOf<String>()
+        val broadcastMessages = mutableListOf<String>()
         lateinit var commandCallback: Callback
         lateinit var eventCallback: Callback
+        lateinit var javaEventCallback: Callback
+        var javaEventClassName: String? = null
 
         init {
             Files.createDirectories(dataRoot)
@@ -143,6 +176,12 @@ class JsLanguageRuntimeTest {
 
         override fun registerEvent(eventKey: String, handler: Callback): Registration {
             eventCallback = handler
+            return Registration {}
+        }
+
+        override fun registerJavaEvent(eventClassName: String, handler: Callback): Registration {
+            javaEventClassName = eventClassName
+            javaEventCallback = handler
             return Registration {}
         }
 
@@ -197,6 +236,22 @@ class JsLanguageRuntimeTest {
             }
 
         override fun javaType(className: String): Class<*> = Class.forName(className)
+
+        override fun serverHandle(): Any = Any()
+
+        override fun pluginHandle(): Any = Any()
+
+        override fun consoleSenderHandle(): Any = Any()
+
+        override fun dispatchConsoleCommand(command: String): Boolean {
+            dispatchedCommands += command
+            return true
+        }
+
+        override fun broadcastMessage(message: String): Int {
+            broadcastMessages += message
+            return 1
+        }
 
         override fun close() {
         }

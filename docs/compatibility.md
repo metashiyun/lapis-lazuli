@@ -9,7 +9,9 @@ What it supports today is:
 
 - a JavaScript runtime
 - TypeScript and JavaScript authoring
-- a small stable host bridge
+- an expanding stable host bridge
+- generic Java event registration
+- a server bridge with raw server/plugin access
 - direct Java interop for advanced JVM access
 
 ## Support Matrix
@@ -22,13 +24,15 @@ What it supports today is:
 | Python authoring SDK | Not implemented | No Python package exists in `packages/` |
 | Python runtime engine | Not implemented | `runtime-core` only registers `JsLanguageRuntime` |
 | Paper 1.21.x server target | Supported | Compile target and smoke-tested path |
-| Bukkit server target | Not supported as a product target | No compatibility tests or adapter guarantee |
-| Spigot server target | Not supported as a product target | No compatibility tests or adapter guarantee |
+| Bukkit server target | Experimental / unverified | No compatibility tests or release guarantee yet |
+| Spigot server target | Experimental / unverified | No compatibility tests or release guarantee yet |
 | Typed commands API | Supported | Simple command registration and execution context |
 | Typed events API | Supported | `playerJoin`, `playerQuit`, `serverLoad` only |
+| Generic Java event subscription | Supported | `events.onJava(...)` accepts any Bukkit/Paper event class name |
 | Typed scheduler API | Supported | Immediate, delayed, and repeating main-thread tasks |
 | Typed config API | Supported | YAML-backed key/value access |
 | Typed data directory API | Supported | Bundle-scoped file access |
+| Server bridge | Supported | Raw server/plugin handles plus console command dispatch and broadcast |
 | Full Bukkit / Spigot / Paper typed wrappers | Not implemented | No object-model wrapper layer exists |
 | Direct Bukkit / Paper access through Java interop | Available | Powerful, but not a stable SDK contract |
 
@@ -38,12 +42,16 @@ The documented Lapis Lazuli API currently exposes:
 
 - `logger`
 - `events.on(...)`
+- `events.onJava(...)`
 - `commands.register(...)`
 - `scheduler.runNow(...)`
 - `scheduler.runLaterTicks(...)`
 - `scheduler.runTimerTicks(...)`
 - `config.get/set/save/reload/keys`
 - `dataDir.path/resolve/readText/writeText/exists/mkdirs`
+- `server.bukkit/plugin/console`
+- `server.dispatchCommand(...)`
+- `server.broadcast(...)`
 - `javaInterop.type(...)`
 
 The only typed events are:
@@ -72,18 +80,21 @@ That gives JS and TS plugins access to much more than the stable host bridge. Ho
 Treat Java interop as an escape hatch, not as proof that Lapis Lazuli has complete SDK
 coverage.
 
+Separately, `events.onJava(...)` now allows plugins to subscribe to arbitrary Bukkit or
+Paper event classes without waiting for each one to be wrapped into `EventMap`.
+
 ## Why Bukkit / Spigot Are Not First-Class Targets Today
 
 The current adapter is Paper-first:
 
 - the runtime compiles against `io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT`
 - the real smoke test boots a Paper server, not Bukkit or Spigot
-- the event adapter serializes join and quit messages through Adventure component APIs
+- broader Java event access still relies on the actual server implementation at runtime
 
 That is enough to support a clear product statement:
 
 - Paper is the supported target today
-- Bukkit and Spigot should be treated as unverified
+- Bukkit and Spigot should still be treated as unverified
 
 ## Recommendation
 

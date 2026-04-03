@@ -2,7 +2,7 @@
 
 This document defines the runtime contract exposed to a loaded JavaScript bundle.
 
-The host context contains six stable service groups plus one escape hatch:
+The host context contains seven stable service groups plus one escape hatch:
 
 - `logger`
 - `events`
@@ -10,6 +10,7 @@ The host context contains six stable service groups plus one escape hatch:
 - `scheduler`
 - `config`
 - `dataDir`
+- `server`
 - `javaInterop`
 
 ## Lifecycle
@@ -41,6 +42,7 @@ interface PluginContext {
   scheduler: Scheduler;
   config: ConfigStore;
   dataDir: DataDirectory;
+  server: ServerBridge;
   javaInterop: JavaInterop;
 }
 ```
@@ -74,6 +76,10 @@ interface EventRegistry {
     event: K,
     handler: (payload: EventMap[K]) => Awaitable<void>,
   ): HookHandle;
+  onJava<T = unknown>(
+    eventClassName: string,
+    handler: (payload: T) => Awaitable<void>,
+  ): HookHandle;
 }
 ```
 
@@ -81,15 +87,32 @@ interface EventRegistry {
 
 | Event key | Payload |
 | --- | --- |
-| `playerJoin` | `{ type: "playerJoin"; playerName: string; playerUuid: string; joinMessage?: string | null }` |
-| `playerQuit` | `{ type: "playerQuit"; playerName: string; playerUuid: string; quitMessage?: string | null }` |
-| `serverLoad` | `{ type: "serverLoad"; reload: boolean }` |
+| `playerJoin` | `{ type: "playerJoin"; playerName: string; playerUuid: string; playerHandle?: unknown; javaEvent?: unknown; joinMessage?: string | null }` |
+| `playerQuit` | `{ type: "playerQuit"; playerName: string; playerUuid: string; playerHandle?: unknown; javaEvent?: unknown; quitMessage?: string | null }` |
+| `serverLoad` | `{ type: "serverLoad"; reload: boolean; javaEvent?: unknown }` |
 
 Notes:
 
 - only these three event keys are supported today
-- payloads are plain JS objects, not raw Bukkit or Paper event instances
+- payloads are plain JS objects
+- typed payloads now also include raw handles where useful, such as `javaEvent` and `playerHandle`
 - unsupported event keys fail at registration time
+
+### Generic Java Events
+
+`events.onJava(...)` subscribes to any JVM event class by fully qualified class name.
+
+Example:
+
+```ts
+context.events.onJava("org.bukkit.event.block.BlockBreakEvent", (event: any) => {
+  const player = event.getPlayer();
+  context.logger.info(`Block break by ${player.getName()}`);
+});
+```
+
+This is the main bridge for broader Bukkit / Spigot / Paper event coverage before a
+typed wrapper exists for each event.
 
 ## `commands`
 
@@ -100,6 +123,7 @@ interface CommandSender {
   name: string;
   type: "player" | "console" | "other";
   uuid?: string;
+  javaHandle?: unknown;
   sendMessage(message: string): void;
 }
 
@@ -128,7 +152,8 @@ Command return handling:
 - a returned `string` is sent to the sender as a chat message and then treated as success
 - `undefined` produces no extra output
 
-The exposed command sender is a small DTO, not the raw Bukkit `CommandSender`.
+The exposed command sender is a small DTO with an optional `javaHandle` for direct access
+to the backing Bukkit sender object.
 
 ## `scheduler`
 
@@ -196,6 +221,28 @@ Notes:
 - the data directory is bundle-scoped
 - the runtime creates it automatically
 - path resolution is constrained so calls cannot escape the bundle data directory
+
+## `server`
+
+```ts
+interface ServerBridge {
+  bukkit: unknown;
+  plugin: unknown;
+  console: unknown;
+  dispatchCommand(command: string): boolean;
+  broadcast(message: string): number;
+}
+```
+
+This bridge exposes raw runtime handles plus a few common server actions.
+
+Notes:
+
+- `bukkit` is the backing `org.bukkit.Server` instance
+- `plugin` is the Lapis Lazuli runtime plugin instance
+- `console` is the console sender handle
+- `dispatchCommand(...)` runs a command as the console sender
+- `broadcast(...)` sends a plain-text broadcast through the backing server
 
 ## `javaInterop`
 

@@ -153,6 +153,9 @@ class BundleManagerTest {
         override fun registerEvent(eventKey: String, handler: Callback) =
             dev.lapislazuli.runtime.core.host.Registration {}
 
+        override fun registerJavaEvent(eventClassName: String, handler: Callback) =
+            dev.lapislazuli.runtime.core.host.Registration {}
+
         override fun runNow(task: Callback) = dev.lapislazuli.runtime.core.host.TaskHandle {}
 
         override fun runLater(delayTicks: Long, task: Callback) =
@@ -195,6 +198,16 @@ class BundleManagerTest {
             }
 
         override fun javaType(className: String): Class<*> = Class.forName(className)
+
+        override fun serverHandle(): Any = Any()
+
+        override fun pluginHandle(): Any = Any()
+
+        override fun consoleSenderHandle(): Any = Any()
+
+        override fun dispatchConsoleCommand(command: String): Boolean = true
+
+        override fun broadcastMessage(message: String): Int = 0
 
         override fun close() {
         }

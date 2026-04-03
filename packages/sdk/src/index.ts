@@ -19,6 +19,7 @@ export interface CommandSender {
   name: string;
   type: "player" | "console" | "other";
   uuid?: string;
+  javaHandle?: unknown;
   sendMessage(message: string): void;
 }
 
@@ -46,6 +47,8 @@ export interface PlayerJoinEvent {
   type: "playerJoin";
   playerName: string;
   playerUuid: string;
+  playerHandle?: unknown;
+  javaEvent?: unknown;
   joinMessage?: string | null;
 }
 
@@ -53,12 +56,15 @@ export interface PlayerQuitEvent {
   type: "playerQuit";
   playerName: string;
   playerUuid: string;
+  playerHandle?: unknown;
+  javaEvent?: unknown;
   quitMessage?: string | null;
 }
 
 export interface ServerLoadEvent {
   type: "serverLoad";
   reload: boolean;
+  javaEvent?: unknown;
 }
 
 export interface EventMap {
@@ -71,6 +77,10 @@ export interface EventRegistry {
   on<K extends keyof EventMap>(
     event: K,
     handler: (payload: EventMap[K]) => Awaitable<void>,
+  ): HookHandle;
+  onJava<T = unknown>(
+    eventClassName: string,
+    handler: (payload: T) => Awaitable<void>,
   ): HookHandle;
 }
 
@@ -105,6 +115,14 @@ export interface JavaInterop {
   type<T = unknown>(className: string): T;
 }
 
+export interface ServerBridge {
+  bukkit: unknown;
+  plugin: unknown;
+  console: unknown;
+  dispatchCommand(command: string): boolean;
+  broadcast(message: string): number;
+}
+
 export interface PluginContext {
   logger: Logger;
   events: EventRegistry;
@@ -112,6 +130,7 @@ export interface PluginContext {
   scheduler: Scheduler;
   config: ConfigStore;
   dataDir: DataDirectory;
+  server: ServerBridge;
   javaInterop: JavaInterop;
 }
 
@@ -125,4 +144,3 @@ export interface PluginDefinition {
 export function definePlugin<T extends PluginDefinition>(definition: T): T {
   return definition;
 }
-

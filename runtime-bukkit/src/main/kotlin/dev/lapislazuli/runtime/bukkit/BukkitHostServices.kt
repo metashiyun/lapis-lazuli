@@ -78,11 +78,27 @@ internal class BukkitHostServices(
 
     override fun registerEvent(eventKey: String, handler: Callback): Registration {
         val binding = BukkitEventBindings.require(eventKey)
+        return registerEvent(binding.eventType) { event ->
+            executeEventCallback(binding.payloadFactory(event), handler)
+        }
+    }
+
+    override fun registerJavaEvent(eventClassName: String, handler: Callback): Registration {
+        val eventType = resolveEventType(eventClassName)
+        return registerEvent(eventType) { event ->
+            executeEventCallback(event, handler)
+        }
+    }
+
+    private fun registerEvent(
+        eventType: Class<out Event>,
+        callback: (Event) -> Unit,
+    ): Registration {
         val listener = object : Listener {}
-        val executor = EventExecutor { _, event -> executeEventCallback(binding, handler, event) }
+        val executor = EventExecutor { _, event -> callback(event) }
 
         plugin.server.pluginManager.registerEvent(
-            binding.eventType,
+            eventType,
             listener,
             EventPriority.NORMAL,
             executor,
@@ -160,6 +176,17 @@ internal class BukkitHostServices(
     override fun javaType(className: String): Class<*> =
         Class.forName(className, true, plugin.javaClass.classLoader)
 
+    override fun serverHandle(): Any = plugin.server
+
+    override fun pluginHandle(): Any = plugin
+
+    override fun consoleSenderHandle(): Any = plugin.server.consoleSender
+
+    override fun dispatchConsoleCommand(command: String): Boolean =
+        plugin.server.dispatchCommand(plugin.server.consoleSender, command)
+
+    override fun broadcastMessage(message: String): Int = plugin.server.broadcastMessage(message)
+
     override fun close() {
         while (registrations.isNotEmpty()) {
             runCatching { registrations.removeFirst().close() }
@@ -191,9 +218,19 @@ internal class BukkitHostServices(
             .onFailure { error -> logger.error("Scheduled task failed for bundle ${bundle.manifest.id}.", error) }
     }
 
-    private fun executeEventCallback(binding: BukkitEventBindings.Binding, handler: Callback, event: Event) {
-        runCatching { handler.invoke(binding.payloadFactory(event)) }
+    private fun executeEventCallback(payload: Any?, handler: Callback) {
+        runCatching { handler.invoke(payload) }
             .onFailure { error -> logger.error("Event callback failed for bundle ${bundle.manifest.id}.", error) }
+    }
+
+    private fun resolveEventType(eventClassName: String): Class<out Event> {
+        val rawClass = Class.forName(eventClassName, true, plugin.javaClass.classLoader)
+        require(Event::class.java.isAssignableFrom(rawClass)) {
+            "Class $eventClassName is not a Bukkit event type."
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return rawClass as Class<out Event>
     }
 
     private fun unregisterKnownCommand(name: String) {
@@ -282,6 +319,7 @@ internal class BukkitHostServices(
                         else -> "other"
                     },
                     "uuid" to (sender as? Player)?.uniqueId?.toString(),
+                    "javaHandle" to sender,
                     "sendMessage" to Callback { payload ->
                         sender.sendMessage(payload?.toString() ?: "")
                         null

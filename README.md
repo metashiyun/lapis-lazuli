@@ -21,8 +21,8 @@ The repository currently ships:
 | JavaScript authoring | Supported | Plain JS bundles are valid |
 | Python SDK | Not implemented | No Python package or Python runtime exists in this repo |
 | Paper server target | Supported | Compiled and smoke-tested against Paper 1.21.x |
-| Bukkit / Spigot server target | Not a supported target | The adapter is Paper-biased and not validated on Bukkit or Spigot |
-| Stable typed server API | Limited | Commands, 3 events, scheduler, config, data directory, logger, Java interop |
+| Bukkit / Spigot server target | Experimental / unverified | The adapter now avoids some Paper-only assumptions, but Bukkit and Spigot are still not validated release targets |
+| Stable typed server API | Expanding | Commands, 3 typed events, generic Java event hooks, scheduler, config, data directory, logger, server bridge, Java interop |
 | Full Bukkit / Paper API via SDK | Not supported | Use Java interop for advanced access, but that is an escape hatch rather than a stable SDK contract |
 
 ## What "Supports Bukkit / Spigot / Paper API" Means Here
@@ -33,10 +33,12 @@ curated typed SDK.
 What it does provide is:
 
 - a small documented host API through `@lapis-lazuli/sdk`
+- a server bridge for raw server/plugin access and console command dispatch
+- generic Java-event subscription through `context.events.onJava(...)`
 - unrestricted Java interop from JS/TS scripts through `context.javaInterop.type(...)`
 
 That means a script can call deeper JVM APIs such as `org.bukkit.Bukkit` or Paper
-classes directly, but Lapis Lazuli does not currently type, wrap, document, or
+classes directly, can receive raw Java event instances, but Lapis Lazuli does not currently type, wrap, document, or
 cross-version test that full surface for you.
 
 ## Documentation
