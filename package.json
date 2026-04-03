@@ -5,8 +5,7 @@
   "workspaces": [
     "apps/*",
     "tooling/*",
-    "sdks/*",
-    "examples/*"
+    "sdks/*"
   ],
   "scripts": {
     "bump:version": "node scripts/bump-version.mjs",

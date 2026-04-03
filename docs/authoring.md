@@ -13,21 +13,26 @@ Published packages:
 - PyPI SDK: `lapis-lazuli`
 - Python import path: `lapis_lazuli`
 
-## 1. Prepare The Workspace
-
-```sh
-bun install
-./gradlew :runtimes:jvm:bukkit:shadowJar
-```
-
-## 2. Create A Plugin
+## 1. Create A Plugin
 
 ```sh
 npx create-lapis-lazuli /absolute/path/to/my-plugin
 npx create-lapis-lazuli /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
-## 3. Implement The Plugin
+The generated TypeScript starter declares `lapis-lazuli` as a normal npm
+dependency and imports from `lapis-lazuli`. The generated Python starter declares
+`lapis-lazuli` in `pyproject.toml` and imports `lapis_lazuli`.
+
+If you are adding Lapis to an existing plugin project instead of scaffolding a new
+one, install the SDK from the public registry for your language:
+
+```sh
+npm install lapis-lazuli
+python -m pip install lapis-lazuli
+```
+
+## 2. Implement The Plugin
 
 TypeScript example:
 
@@ -62,14 +67,7 @@ def on_enable(context):
     context.app.log.info("My Python Plugin enabled.")
 ```
 
-If you are authoring outside this monorepo, install the SDKs from the public registries:
-
-```sh
-npm install lapis-lazuli
-python -m pip install lapis-lazuli
-```
-
-## 4. Validate And Bundle
+## 3. Validate And Bundle
 
 ```sh
 npx create-lapis-lazuli validate /absolute/path/to/my-plugin
@@ -78,17 +76,25 @@ npx create-lapis-lazuli bundle /absolute/path/to/my-plugin
 
 The deployable bundle is written under `dist/<plugin-id>/`.
 
-## 5. Install The Runtime
+## 4. Install The Runtime
 
-Copy:
+Download the precompiled runtime JAR from the latest GitHub release:
 
-- `runtimes/jvm/bukkit/build/libs/lapis-runtime-bukkit.jar`
+- <https://github.com/metashiyun/lapis-lazuli/releases/latest/download/lapis-runtime-bukkit.jar>
 
 into:
 
 - `<server>/plugins/`
 
-## 6. Install The Bundle
+Only build the runtime from source if you are developing this repository itself or
+testing unpublished runtime changes:
+
+```sh
+bun install
+./gradlew :runtimes:jvm:bukkit:shadowJar
+```
+
+## 5. Install The Bundle
 
 Copy:
 
@@ -98,7 +104,7 @@ into:
 
 - `<server>/plugins/LapisLazuli/bundles/<plugin-id>/`
 
-## 7. Run The Server
+## 6. Run The Server
 
 On startup the runtime:
 
@@ -107,7 +113,7 @@ On startup the runtime:
 - invokes `onEnable`
 - starts hot reload polling
 
-## 8. Recommended Authoring Model
+## 7. Recommended Authoring Model
 
 Use the Lapis services for normal plugin work:
 
@@ -126,7 +132,7 @@ Use the Lapis services for normal plugin work:
 
 Use `context.unsafe` only when the required backend capability is not yet modeled.
 
-## 9. Validate On A Real Server
+## 8. Validate On A Real Server
 
 ```sh
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke

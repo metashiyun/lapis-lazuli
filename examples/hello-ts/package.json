@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bundle": "bun ../../tooling/cli/src/index.ts bundle ."
+    "validate": "npx create-lapis-lazuli validate .",
+    "bundle": "npx create-lapis-lazuli bundle ."
   },
   "dependencies": {
-    "lapis-lazuli": "workspace:*"
+    "lapis-lazuli": "^0.1.0"
   }
 }

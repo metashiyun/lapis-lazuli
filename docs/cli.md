@@ -22,7 +22,8 @@ Supported engines:
 - `python`
 
 The generated TypeScript starter depends on `lapis-lazuli` and uses the current
-service-oriented API.
+service-oriented API. It imports from the published package name
+`lapis-lazuli`, not a local file path.
 
 The generated Python starter includes `pyproject.toml` metadata, installs the PyPI
 package `lapis-lazuli`, and imports `lapis_lazuli`.

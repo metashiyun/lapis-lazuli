@@ -6,18 +6,23 @@ Lapis runtime plugin on Bukkit-family servers.
 
 ## Quick Start
 
-Install dependencies and build the runtime:
-
-```sh
-bun install
-./gradlew :runtimes:jvm:bukkit:shadowJar
-```
-
 Create a plugin project:
 
 ```sh
 npx create-lapis-lazuli /absolute/path/to/my-plugin
 npx create-lapis-lazuli /absolute/path/to/my-python-plugin "My Python Plugin" python
+```
+
+The generated TypeScript starter installs `lapis-lazuli` from npm and imports it
+as `lapis-lazuli`. The generated Python starter installs `lapis-lazuli` from PyPI
+and imports it as `lapis_lazuli`.
+
+If you are adding Lapis to an existing plugin project instead of scaffolding a new
+one, install the SDK from the public registry for your language:
+
+```sh
+npm install lapis-lazuli
+python -m pip install lapis-lazuli
 ```
 
 Validate and bundle it:
@@ -27,11 +32,18 @@ npx create-lapis-lazuli validate /absolute/path/to/my-plugin
 npx create-lapis-lazuli bundle /absolute/path/to/my-plugin
 ```
 
-Copy these into your server:
+Install these into your server:
 
 ```text
-runtimes/jvm/bukkit/build/libs/lapis-runtime-bukkit.jar -> <server>/plugins/
-dist/<plugin-id>/ -> <server>/plugins/LapisLazuli/bundles/<plugin-id>/
+https://github.com/metashiyun/lapis-lazuli/releases/latest/download/lapis-runtime-bukkit.jar -> <server>/plugins/lapis-runtime-bukkit.jar
+/absolute/path/to/my-plugin/dist/<plugin-id>/ -> <server>/plugins/LapisLazuli/bundles/<plugin-id>/
+```
+
+Build the runtime from source only when you are developing this repository itself:
+
+```sh
+bun install
+./gradlew :runtimes:jvm:bukkit:shadowJar
 ```
 
 ## Development Checks
