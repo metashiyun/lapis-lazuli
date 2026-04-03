@@ -1,6 +1,6 @@
 {
   "name": "lapis-lazuli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,6 +13,11 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metashiyun/lapis-lazuli.git",
+    "directory": "sdks/typescript"
+  },
   "publishConfig": {
     "access": "public"
   },

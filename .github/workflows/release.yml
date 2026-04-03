@@ -41,6 +41,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Set up Bun for Gradle integration tests
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.9"
+
       - name: Run Gradle tests and bundle the Bukkit runtime
         run: ./gradlew test :runtimes:jvm:bukkit:shadowJar --no-daemon
 

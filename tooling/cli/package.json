@@ -1,15 +1,20 @@
 {
   "name": "create-lapis-lazuli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "create-lapis-lazuli": "./dist/index.js",
-    "lapis": "./dist/index.js"
+    "create-lapis-lazuli": "dist/index.js",
+    "lapis": "dist/index.js"
   },
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metashiyun/lapis-lazuli.git",
+    "directory": "tooling/cli"
+  },
   "publishConfig": {
     "access": "public"
   },
