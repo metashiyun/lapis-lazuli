@@ -103,7 +103,6 @@ pre {
 }
 
 .topbar-links,
-.hero-actions,
 .docs-meta-links,
 .docs-quick-links {
   display: flex;
@@ -194,32 +193,10 @@ pre {
   color: rgba(245, 248, 255, 0.82);
 }
 
-.hero-actions {
-  margin-top: 32px;
-}
-
-.hero-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 18px;
-  border: 1px solid rgba(216, 228, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(216, 228, 255, 0.14);
-  color: #f5f8ff;
-  font-weight: 600;
-}
-
-.hero-action.secondary {
-  background: transparent;
-}
-
 .hero-link:hover,
 .hero-link:focus-visible,
 .closing-link:hover,
-.closing-link:focus-visible,
-.hero-action:hover,
-.hero-action:focus-visible {
+.closing-link:focus-visible {
   opacity: 0.88;
 }
 
@@ -267,17 +244,11 @@ pre {
   display: block;
 }
 
-.docs-preview-grid,
 .docs-section-grid {
   display: grid;
   gap: 20px;
 }
 
-.docs-preview-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.docs-preview-card,
 .docs-section-card,
 .docs-article,
 .docs-sidebar,
@@ -288,12 +259,10 @@ pre {
   box-shadow: 0 18px 48px rgba(9, 27, 54, 0.04);
 }
 
-.docs-preview-card,
 .docs-section-card {
   padding: 24px;
 }
 
-.docs-preview-label,
 .docs-kicker,
 .docs-nav-label {
   margin: 0 0 12px;
@@ -304,28 +273,24 @@ pre {
   color: var(--lapis-deep);
 }
 
-.docs-preview-card h3,
 .docs-section-card h2,
 .docs-home-intro h1 {
   margin: 0;
   font-family: var(--font-serif);
 }
 
-.docs-preview-card h3,
 .docs-section-card h2 {
   font-size: 1.8rem;
   line-height: 1.08;
   letter-spacing: -0.03em;
 }
 
-.docs-preview-list,
 .docs-link-list {
   display: grid;
   gap: 10px;
   margin-top: 24px;
 }
 
-.docs-preview-item,
 .docs-link-card,
 .docs-quick-link,
 .docs-pager-link,
@@ -339,7 +304,6 @@ pre {
     transform 160ms ease;
 }
 
-.docs-preview-item,
 .docs-link-card,
 .docs-quick-link,
 .docs-pager-link {
@@ -350,8 +314,6 @@ pre {
   background: rgba(248, 250, 255, 0.88);
 }
 
-.docs-preview-item:hover,
-.docs-preview-item:focus-visible,
 .docs-link-card:hover,
 .docs-link-card:focus-visible,
 .docs-quick-link:hover,
@@ -707,7 +669,6 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .docs-preview-grid,
   .docs-section-grid,
   .docs-frame {
     grid-template-columns: 1fr;
@@ -766,7 +727,6 @@ pre {
   }
 
   .docs-home-intro h1,
-  .docs-preview-card h3,
   .docs-section-card h2 {
     max-width: none;
   }

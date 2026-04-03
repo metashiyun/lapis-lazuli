@@ -1,6 +1,5 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { getDocsByGroup } from "../lib/docs";
 
 const principles = [
   {
@@ -31,8 +30,6 @@ const steps = [
     detail: "Build the runtime plugin, copy the bundle into the Lapis Lazuli bundles directory, and let the server pick it up."
   }
 ];
-
-const docGroups = getDocsByGroup();
 ---
 
 <BaseLayout
@@ -58,13 +55,6 @@ const docGroups = getDocsByGroup();
           with a runtime that lets those plugins run naturally on Paper and Bukkit
           servers.
         </p>
-
-        <div class="hero-actions">
-          <a class="hero-action" href="/docs">Read the docs</a>
-          <a class="hero-action secondary" href="https://github.com/metashiyun/lapis-lazuli">
-            Browse source
-          </a>
-        </div>
       </div>
 
       <div class="hero-pattern" aria-hidden="true"></div>
@@ -104,30 +94,6 @@ const docGroups = getDocsByGroup();
             </article>
           ))}
         </div>
-      </div>
-    </section>
-
-    <section class="section" id="docs">
-      <div class="section-heading">
-        <p class="section-label">Documentation</p>
-        <h2>The repo docs now live inside the site.</h2>
-      </div>
-
-      <div class="docs-preview-grid">
-        {docGroups.map((group) => (
-          <article class="docs-preview-card">
-            <p class="docs-preview-label">{group.label}</p>
-            <h3>{group.description}</h3>
-
-            <div class="docs-preview-list">
-              {group.docs.map((doc) => (
-                <a class="docs-preview-item" href={doc.url}>
-                  {doc.title}
-                </a>
-              ))}
-            </div>
-          </article>
-        ))}
       </div>
     </section>
 
