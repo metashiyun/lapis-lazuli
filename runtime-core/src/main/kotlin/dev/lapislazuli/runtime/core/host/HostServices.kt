@@ -1,7 +1,12 @@
 package dev.lapislazuli.runtime.core.host
 
 interface HostServices : AutoCloseable {
+    fun app(): AppDescriptor
+
     fun logger(): RuntimeLogger
+
+    @Throws(Exception::class)
+    fun onShutdown(handler: Callback): Registration
 
     @Throws(Exception::class)
     fun registerCommand(
@@ -9,6 +14,7 @@ interface HostServices : AutoCloseable {
         description: String,
         usage: String,
         aliases: List<String>,
+        permission: String?,
         execute: Callback,
     ): Registration
 
@@ -29,7 +35,28 @@ interface HostServices : AutoCloseable {
 
     fun config(): ConfigStore
 
+    fun storage(): KeyValueStore
+
     fun dataDirectory(): DataDirectory
+
+    fun onlinePlayers(): List<HostPlayer>
+
+    fun findPlayer(query: String): HostPlayer?
+
+    fun worlds(): List<HostWorld>
+
+    fun findWorld(name: String): HostWorld?
+
+    fun findEntity(id: String): HostEntity?
+
+    @Throws(Exception::class)
+    fun spawnEntity(worldName: String, entityType: String, location: HostLocation): HostEntity
+
+    @Throws(Exception::class)
+    fun createItem(spec: HostItemSpec): HostItem
+
+    @Throws(Exception::class)
+    fun createInventory(id: String?, title: String, size: Int): HostInventory
 
     @Throws(Exception::class)
     fun javaType(className: String): Class<*>

@@ -4,11 +4,9 @@ import dev.lapislazuli.runtime.core.bundle.BundleManifest
 import dev.lapislazuli.runtime.core.bundle.BundleManifestParser
 import dev.lapislazuli.runtime.core.bundle.ScriptBundle
 import dev.lapislazuli.runtime.core.bundle.ScriptBundleLoader
-import dev.lapislazuli.runtime.core.host.Callback
-import dev.lapislazuli.runtime.core.host.ConfigStore
-import dev.lapislazuli.runtime.core.host.DataDirectory
 import dev.lapislazuli.runtime.core.host.HostServices
 import dev.lapislazuli.runtime.core.host.RuntimeLogger
+import dev.lapislazuli.runtime.core.testsupport.FakeHostServices
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -29,7 +27,7 @@ class BundleManagerTest {
         val manager = BundleManager(
             bundleLoader = ScriptBundleLoader(BundleManifestParser()),
             languageRuntimeRegistry = LanguageRuntimeRegistry(listOf(FakeRuntime(enabled))),
-            hostServicesFactory = dev.lapislazuli.runtime.core.host.HostServicesFactory { FakeHostServices() },
+            hostServicesFactory = dev.lapislazuli.runtime.core.host.HostServicesFactory { FakeHostServices(tempDir.resolve("data")) },
             logger = TestLogger(),
         )
 
@@ -51,7 +49,7 @@ class BundleManagerTest {
         val manager = BundleManager(
             bundleLoader = ScriptBundleLoader(BundleManifestParser()),
             languageRuntimeRegistry = LanguageRuntimeRegistry(listOf(TrackingRuntime(lifecycle))),
-            hostServicesFactory = dev.lapislazuli.runtime.core.host.HostServicesFactory { FakeHostServices() },
+            hostServicesFactory = dev.lapislazuli.runtime.core.host.HostServicesFactory { FakeHostServices(tempDir.resolve("data")) },
             logger = TestLogger(),
         )
 
@@ -136,80 +134,6 @@ class BundleManagerTest {
                     lifecycle += "close:$version"
                 }
             }
-        }
-    }
-
-    private class FakeHostServices : HostServices {
-        override fun logger(): RuntimeLogger = TestLogger()
-
-        override fun registerCommand(
-            name: String,
-            description: String,
-            usage: String,
-            aliases: List<String>,
-            execute: Callback,
-        ) = dev.lapislazuli.runtime.core.host.Registration {}
-
-        override fun registerEvent(eventKey: String, handler: Callback) =
-            dev.lapislazuli.runtime.core.host.Registration {}
-
-        override fun registerJavaEvent(eventClassName: String, handler: Callback) =
-            dev.lapislazuli.runtime.core.host.Registration {}
-
-        override fun runNow(task: Callback) = dev.lapislazuli.runtime.core.host.TaskHandle {}
-
-        override fun runLater(delayTicks: Long, task: Callback) =
-            dev.lapislazuli.runtime.core.host.TaskHandle {}
-
-        override fun runTimer(delayTicks: Long, intervalTicks: Long, task: Callback) =
-            dev.lapislazuli.runtime.core.host.TaskHandle {}
-
-        override fun config(): ConfigStore =
-            object : ConfigStore {
-                override fun get(path: String): Any? = null
-
-                override fun set(path: String, value: Any?) {
-                }
-
-                override fun save() {
-                }
-
-                override fun reload() {
-                }
-
-                override fun keys(): List<String> = emptyList()
-            }
-
-        override fun dataDirectory(): DataDirectory =
-            object : DataDirectory {
-                override fun path(): String = ""
-
-                override fun resolve(vararg segments: String): String = ""
-
-                override fun readText(relativePath: String): String = ""
-
-                override fun writeText(relativePath: String, contents: String) {
-                }
-
-                override fun exists(relativePath: String): Boolean = false
-
-                override fun mkdirs(relativePath: String) {
-                }
-            }
-
-        override fun javaType(className: String): Class<*> = Class.forName(className)
-
-        override fun serverHandle(): Any = Any()
-
-        override fun pluginHandle(): Any = Any()
-
-        override fun consoleSenderHandle(): Any = Any()
-
-        override fun dispatchConsoleCommand(command: String): Boolean = true
-
-        override fun broadcastMessage(message: String): Int = 0
-
-        override fun close() {
         }
     }
 
