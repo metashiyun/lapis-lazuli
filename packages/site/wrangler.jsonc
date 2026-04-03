@@ -1,0 +1,10 @@
+{
+  "name": "lapis-lazuli-site",
+  "compatibility_date": "2026-04-03",
+  "assets": {
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

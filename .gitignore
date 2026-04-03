@@ -1,8 +1,11 @@
 .DS_Store
 .gradle/
+.gradle-local/
+.kotlin/
 .idea/
 .lapis/
 .vscode/
+*.iml
 **/bin/
 build/
 dist/
