@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const principles = [
+  {
+    title: "Author in TypeScript",
+    body: "Use the SDK and ordinary Bun-based tooling instead of building against Java."
+  },
+  {
+    title: "Ship to the JVM",
+    body: "Drop bundles into a Paper or Bukkit server and let the runtime manage loading."
+  },
+  {
+    title: "Iterate quickly",
+    body: "Replace bundle files and rely on hot reload while the server stays online."
+  }
+];
+
+const steps = [
+  {
+    title: "Create a plugin",
+    detail: "Scaffold a project with a manifest and a TypeScript entrypoint."
+  },
+  {
+    title: "Bundle it",
+    detail: "Validate the manifest and package the runtime-ready bundle structure."
+  },
+  {
+    title: "Load it on the server",
+    detail: "Build the runtime plugin, copy the bundle into the Lapis Lazuli bundles directory, and let the server pick it up."
+  }
+];
+---
+
+<BaseLayout
+  title="Lapis Lazuli"
+  description="Lapis Lazuli lets plugin authors build lightweight Minecraft server plugins in TypeScript and run them on Paper or Bukkit."
+>
+  <main class="page-shell">
+    <header class="site-header">
+      <div class="topbar">
+        <a class="brand" href="/">Lapis Lazuli</a>
+        <a class="hero-link" href="https://github.com/metashiyun/lapis-lazuli">GitHub</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Write Minecraft plugins without touching Java.</h1>
+        <p class="lede">
+          Lapis Lazuli is a library for writing Minecraft plugins in TypeScript,
+          with a runtime that lets those plugins run naturally on Paper and Bukkit
+          servers.
+        </p>
+      </div>
+
+      <div class="hero-pattern" aria-hidden="true"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <p class="section-label">Overview</p>
+        <h2>A small idea, kept small.</h2>
+      </div>
+
+      <div class="simple-grid">
+        {principles.map(({ title, body }) => (
+          <article class="simple-item">
+            <h3>{title}</h3>
+            <p>{body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="section" id="how-it-works">
+      <div class="section-heading">
+        <p class="section-label">Workflow</p>
+        <h2>From source files to a running server.</h2>
+      </div>
+
+      <div class="workflow-layout">
+        <div class="step-list">
+          {steps.map(({ title, detail }, index) => (
+            <article class="step-item">
+              <span class="step-number">0{index + 1}</span>
+              <div class="step-copy">
+                <h3>{title}</h3>
+                <p>{detail}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <h2>
+        built by <a class="closing-link" href="https://shiyun.org">metaShiyun</a>.
+      </h2>
+    </section>
+  </main>
+</BaseLayout>

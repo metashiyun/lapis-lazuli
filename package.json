@@ -10,6 +10,11 @@
     "test": "bun test",
     "validate:example": "bun packages/cli/src/index.ts validate examples/hello-ts",
     "bundle:example": "bun packages/cli/src/index.ts bundle examples/hello-ts",
-    "test:paper-smoke": "bash scripts/paper-smoke.sh"
+    "test:paper-smoke": "bash scripts/paper-smoke.sh",
+    "dev:site": "bun run --filter @lapis-lazuli/site dev",
+    "build:site": "bun run --filter @lapis-lazuli/site build",
+    "preview:site": "bun run --filter @lapis-lazuli/site preview",
+    "dev:site:cf": "bun run --filter @lapis-lazuli/site dev:cf",
+    "deploy:site": "bun run --filter @lapis-lazuli/site deploy"
   }
 }
