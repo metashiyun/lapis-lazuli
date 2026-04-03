@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M64 16L100 44V84L64 112L28 84V44L64 16Z" fill="url(#gem)"/>
+  <path d="M64 16L79 44L64 64L49 44L64 16Z" fill="#D6B77A"/>
+  <path d="M28 44H49L64 64L44 94L28 84V44Z" fill="#0B8B84"/>
+  <path d="M100 44H79L64 64L84 94L100 84V44Z" fill="#155FD5"/>
+  <path d="M49 44H79L64 64L49 44Z" fill="#F7E5BA"/>
+  <path d="M44 94L64 64L84 94L64 112L44 94Z" fill="#0D3F92"/>
+  <defs>
+    <linearGradient id="gem" x1="28" y1="16" x2="100" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2D59C"/>
+      <stop offset="0.48" stop-color="#2B84D6"/>
+      <stop offset="1" stop-color="#0A5A7D"/>
+    </linearGradient>
+  </defs>
+</svg>
