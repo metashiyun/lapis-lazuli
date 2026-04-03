@@ -1,9 +1,18 @@
 # CLI Reference
 
-The CLI lives in `tooling/cli` and is currently invoked from source:
+The CLI package is `create-lapis-lazuli`. It lives in `tooling/cli` and supports both
+the project initializer form and the existing `lapis` command form.
+
+From source:
 
 ```sh
 bun tooling/cli/src/index.ts <command> ...
+```
+
+Initializer form after publishing:
+
+```sh
+npx create-lapis-lazuli <directory>
 ```
 
 ## Commands
@@ -19,7 +28,7 @@ Supported engines:
 - `js`
 - `python`
 
-The generated TypeScript starter depends on `@lapis-lazuli/sdk` and uses the current
+The generated TypeScript starter depends on `lapis-lazuli` and uses the current
 service-oriented API.
 
 The generated Python starter includes `pyproject.toml` metadata and imports the
@@ -63,7 +72,7 @@ Behavior:
 - writes a deployable bundle directory
 - rewrites manifest `main` to the bundled output path
 
-For repo-local development, JS builds rewrite `@lapis-lazuli/sdk` imports to the local
+For repo-local development, JS builds rewrite `lapis-lazuli` imports to the local
 workspace package so publishing is not required during development.
 
 Python builds follow the same principle by copying the workspace `lapis_lazuli` package

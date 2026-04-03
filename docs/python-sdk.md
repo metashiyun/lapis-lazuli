@@ -3,7 +3,7 @@
 Package name:
 
 ```py
-lapis-lazuli-sdk
+lapis-lazuli
 ```
 
 Import path:

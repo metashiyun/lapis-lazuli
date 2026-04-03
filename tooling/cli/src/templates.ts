@@ -11,7 +11,7 @@ export function renderPackageJson(name: string): string {
         bundle: "lapis bundle .",
       },
       dependencies: {
-        "@lapis-lazuli/sdk": "^0.1.0",
+        "lapis-lazuli": "^0.1.0",
       },
     },
     null,
@@ -27,7 +27,7 @@ export function renderPythonPyproject(name: string): string {
     'description = "Lapis Lazuli Python plugin"',
     'requires-python = ">=3.11"',
     "dependencies = [",
-    '  "lapis-lazuli-sdk>=0.1.0",',
+    '  "lapis-lazuli>=0.1.0",',
     "]",
     "",
   ].join("\n");
@@ -75,7 +75,7 @@ def on_disable(context):
 `;
   }
 
-  return `import { definePlugin } from "@lapis-lazuli/sdk";
+  return `import { definePlugin } from "lapis-lazuli";
 
 export default definePlugin({
   name: "${displayName}",

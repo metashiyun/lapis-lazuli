@@ -1,11 +1,14 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
-import { buildProject, bundleProject, createProject, validateManifest } from "./lib";
+import { basename } from "node:path";
+
+import { buildProject, bundleProject, createProject, validateManifest } from "./lib.js";
 
 function usage(): never {
   throw new Error(
     [
       "Usage:",
+      "  create-lapis-lazuli <directory> [display-name] [engine]",
       "  lapis create <directory> [display-name] [engine]",
       "  lapis validate <directory>",
       "  lapis bundle <directory> [output-directory]",
@@ -17,7 +20,18 @@ function usage(): never {
 }
 
 async function main(): Promise<void> {
-  const [command, firstArg, secondArg, thirdArg] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const executable = basename(process.argv[1] ?? "");
+  const knownCommands = new Set(["create", "validate", "build", "bundle"]);
+
+  let [command, firstArg, secondArg, thirdArg] = args;
+
+  if (executable === "create-lapis-lazuli" && (!command || !knownCommands.has(command))) {
+    thirdArg = secondArg;
+    secondArg = firstArg;
+    firstArg = command;
+    command = "create";
+  }
 
   if (!command) {
     usage();

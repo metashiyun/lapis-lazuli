@@ -1,12 +1,25 @@
 {
-  "name": "@lapis-lazuli/cli",
+  "name": "create-lapis-lazuli",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/index.js",
   "bin": {
-    "lapis": "./src/index.ts"
+    "create-lapis-lazuli": "./dist/index.js",
+    "lapis": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build",
     "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.3"
   }
 }
-

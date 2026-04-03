@@ -11,7 +11,7 @@ This directory contains the current technical docs for Lapis Lazuli.
 ## API Reference
 
 - [api/runtime-host-api.md](api/runtime-host-api.md): runtime context exposed to bundles
-- [api/typescript-sdk.md](api/typescript-sdk.md): public `@lapis-lazuli/sdk` contract
+- [api/typescript-sdk.md](api/typescript-sdk.md): public `lapis-lazuli` contract
 - [cli.md](cli.md): CLI commands
 - [bundle-format.md](bundle-format.md): manifest and bundle layout
 - [python-sdk.md](python-sdk.md): public Python SDK

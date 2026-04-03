@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Verify release version metadata
+        run: node scripts/check-release-version.mjs "${GITHUB_REF_NAME}"
+
+  build-jar:
+    needs: verify-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run Gradle tests and bundle the Bukkit runtime
+        run: ./gradlew test :runtimes:jvm:bukkit:shadowJar --no-daemon
+
+      - name: Upload Bukkit runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lapis-runtime-bukkit
+          path: runtimes/jvm/bukkit/build/libs/lapis-runtime-bukkit.jar
+          if-no-files-found: error
+
+  publish-npm:
+    needs: verify-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js for npm publishing
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.9"
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the TypeScript SDK
+        run: bun run build
+        working-directory: sdks/typescript
+
+      - name: Publish the TypeScript SDK to npm
+        run: npm publish --access public
+        working-directory: sdks/typescript
+
+  publish-cli-npm:
+    needs: verify-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js for npm publishing
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.9"
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the CLI package
+        run: bun run build
+        working-directory: tooling/cli
+
+      - name: Publish the CLI package to npm
+        run: npm publish --access public
+        working-directory: tooling/cli
+
+  publish-pypi:
+    needs: verify-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    environment: pypi
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python build tooling
+        run: python3 -m pip install --upgrade build
+
+      - name: Build the Python SDK distributions
+        run: python3 -m build
+        working-directory: sdks/python
+
+      - name: Publish the Python SDK to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist/
+
+  github-release:
+    needs:
+      - build-jar
+      - publish-npm
+      - publish-cli-npm
+      - publish-pypi
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the Bukkit runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lapis-runtime-bukkit
+          path: release-assets
+
+      - name: Publish the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/lapis-runtime-bukkit.jar
+          fail_on_unmatched_files: true
+          generate_release_notes: true

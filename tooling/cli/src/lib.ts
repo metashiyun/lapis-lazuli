@@ -3,7 +3,7 @@ import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, 
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderManifest, renderPackageJson, renderPythonPyproject, renderSource, GITIGNORE } from "./templates";
+import { renderManifest, renderPackageJson, renderPythonPyproject, renderSource, GITIGNORE } from "./templates.js";
 
 export type LapisEngine = "js" | "python";
 
@@ -217,7 +217,7 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
 }
 
 async function ensureLocalSdkLink(projectDir: string): Promise<(() => Promise<void>) | null> {
-  const linkPath = join(resolve(projectDir), "node_modules", "@lapis-lazuli", "sdk");
+  const linkPath = join(resolve(projectDir), "node_modules", "lapis-lazuli");
   const existing = await lstat(linkPath).catch(() => null);
 
   if (existing) {
@@ -244,13 +244,13 @@ async function prepareEntrypointForBuild(
   const localSdkEntry = join(LOCAL_SDK_DIR, "src", "index.ts");
   const localSdkExists = await stat(localSdkEntry).catch(() => null);
 
-  if (!localSdkExists?.isFile() || !source.includes("@lapis-lazuli/sdk")) {
+  if (!localSdkExists?.isFile() || !source.includes("lapis-lazuli")) {
     return { entrypoint };
   }
 
   const rewrittenImportPath = normalizeImportPath(relative(dirname(entrypoint), localSdkEntry));
   const rewrittenSource = source.replace(
-    /(["'])@lapis-lazuli\/sdk\1/g,
+    /(["'])lapis-lazuli\1/g,
     (_match: string, quote: string) => `${quote}${rewrittenImportPath}${quote}`,
   );
   const rewrittenEntrypoint = join(dirname(entrypoint), `.lapis-${basename(entrypoint)}`);

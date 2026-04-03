@@ -1,4 +1,4 @@
-import { definePlugin } from "@lapis-lazuli/sdk";
+import { definePlugin } from "lapis-lazuli";
 
 export default definePlugin({
   name: "Hello TS",

@@ -26,7 +26,7 @@ bun tooling/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Pytho
 TypeScript example:
 
 ```ts
-import { definePlugin } from "@lapis-lazuli/sdk";
+import { definePlugin } from "lapis-lazuli";
 
 export default definePlugin({
   name: "My Plugin",

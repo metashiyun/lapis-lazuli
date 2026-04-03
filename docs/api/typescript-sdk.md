@@ -3,7 +3,7 @@
 Package name:
 
 ```ts
-@lapis-lazuli/sdk
+lapis-lazuli
 ```
 
 The SDK is the public TypeScript authoring surface for Lapis Lazuli. It is service-first
@@ -12,7 +12,7 @@ and TypeScript-first; it does not attempt to mirror Bukkit or Paper class-for-cl
 ## Minimal Example
 
 ```ts
-import { definePlugin } from "@lapis-lazuli/sdk";
+import { definePlugin } from "lapis-lazuli";
 
 export default definePlugin({
   name: "Example Plugin",

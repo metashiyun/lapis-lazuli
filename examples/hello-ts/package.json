@@ -6,6 +6,6 @@
     "bundle": "bun ../../tooling/cli/src/index.ts bundle ."
   },
   "dependencies": {
-    "@lapis-lazuli/sdk": "workspace:*"
+    "lapis-lazuli": "workspace:*"
   }
 }

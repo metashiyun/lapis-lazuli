@@ -9,6 +9,8 @@
     "examples/*"
   ],
   "scripts": {
+    "check:release-version": "node scripts/check-release-version.mjs",
+    "postinstall": "bun run --filter lapis-lazuli build",
     "test": "bun test",
     "validate:example": "bun tooling/cli/src/index.ts validate examples/hello-ts",
     "bundle:example": "bun tooling/cli/src/index.ts bundle examples/hello-ts",

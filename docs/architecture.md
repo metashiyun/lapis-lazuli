@@ -29,7 +29,7 @@ Lapis Lazuli has four main layers:
 - mapping handles for players, worlds, entities, items, inventories, chat, and storage
 - managing the bundle directory and hot reload lifecycle
 
-### `@lapis-lazuli/sdk`
+### `lapis-lazuli`
 
 The SDK is the public authoring contract. It defines:
 
@@ -39,7 +39,7 @@ The SDK is the public authoring contract. It defines:
 - handle types
 - event payload types
 
-### `@lapis-lazuli/cli`
+### `create-lapis-lazuli`
 
 The CLI drives local authoring:
 
