@@ -1,7 +1,7 @@
 # Lapis Lazuli
 
 Lapis Lazuli is a zero-Java authoring platform for lightweight Minecraft server plugins.
-Plugin authors write TypeScript or JavaScript only. The project ships:
+Plugin authors write TypeScript, JavaScript, or Python. The project ships:
 
 - a JVM runtime plugin for Paper/Bukkit servers
 - `@lapis-lazuli/sdk` for typed plugin authoring
@@ -9,11 +9,12 @@ Plugin authors write TypeScript or JavaScript only. The project ships:
 
 ## Repository Layout
 
-- `runtime-core`: engine-agnostic bundle loading, lifecycle management, and the GraalJS runtime
+- `runtime-core`: engine-agnostic bundle loading, lifecycle management, and the GraalJS/GraalPy runtimes
 - `runtime-bukkit`: Paper/Bukkit plugin adapter and host bridge implementation
 - `packages/sdk`: TypeScript-first plugin authoring API
 - `packages/cli`: project scaffolding and bundling CLI
 - `examples/hello-ts`: canonical zero-Java example plugin
+- `examples/hello-python`: canonical Python example plugin
 
 ## Local Commands
 
@@ -21,6 +22,7 @@ Plugin authors write TypeScript or JavaScript only. The project ships:
 bun install
 bun test
 bun packages/cli/src/index.ts create /path/to/my-plugin "My Plugin"
+bun packages/cli/src/index.ts create /path/to/my-python-plugin "My Python Plugin" python
 bun packages/cli/src/index.ts validate examples/hello-ts
 bun packages/cli/src/index.ts bundle examples/hello-ts
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
@@ -34,7 +36,7 @@ The TypeScript workspace is Bun-based and uses only built-in Bun capabilities. T
 Each script plugin bundle contains:
 
 - `lapis-plugin.json`
-- `main.js`
+- a language-specific entrypoint such as `main.js` or `src/main.py`
 
 The runtime plugin discovers bundles from its data directory under `bundles/<bundle-id>/`.
 
@@ -51,19 +53,22 @@ Example manifest:
 }
 ```
 
-The CLI rewrites `main` to `main.js` in the packaged bundle.
+For JavaScript and TypeScript bundles, the CLI rewrites `main` to `main.js` in the packaged bundle.
+For Python bundles, the CLI stages the project source tree into the deployable bundle and preserves the Python entrypoint path.
 
 ## Develop And Install A Plugin
 
 The current workflow is source-first from this repository:
 
-1. Create a new TypeScript plugin project:
+1. Create a new plugin project:
 
 ```sh
 bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
+# or
+bun packages/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
-2. Edit `/absolute/path/to/my-plugin/src/index.ts` and `/absolute/path/to/my-plugin/lapis-plugin.json`.
+2. Edit the generated source file and `lapis-plugin.json`.
 
 3. Validate and bundle the plugin:
 
@@ -84,7 +89,7 @@ Then copy:
 
 5. Start the server once so Paper loads the runtime plugin and creates `plugins/LapisLazuli/`, then stop the server.
 
-6. Install the bundled TypeScript plugin by copying:
+6. Install the bundled plugin by copying:
 
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/`
 
@@ -107,5 +112,7 @@ hotReload:
 ```
 
 The supported update flow is now build bundle, replace the bundle folder, and wait for the runtime to reload it.
+
+Python bundles currently support bundle-local source files and modules. Third-party Python packages are not bundled automatically yet.
 
 For a fuller walkthrough, see [docs/authoring.md](docs/authoring.md).

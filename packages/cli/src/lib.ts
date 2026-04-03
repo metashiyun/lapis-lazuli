@@ -1,8 +1,11 @@
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderManifest, renderPackageJson, renderSource, GITIGNORE } from "./templates";
+
+export type LapisEngine = "js" | "python";
 
 export interface LapisManifest {
   id: string;
@@ -19,6 +22,22 @@ export interface ValidationResult {
 }
 
 const LOCAL_SDK_DIR = fileURLToPath(new URL("../../sdk", import.meta.url));
+const SUPPORTED_ENGINES = new Set<LapisEngine>(["js", "python"]);
+const PYTHON_BUNDLE_IGNORED_DIRECTORIES = new Set([
+  ".git",
+  ".lapis",
+  "__pycache__",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".venv",
+  "dist",
+  "node_modules",
+  "venv",
+]);
+const PYTHON_BUNDLE_IGNORED_FILES = new Set([
+  ".DS_Store",
+]);
 
 function assertString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -52,9 +71,7 @@ export async function validateManifest(projectDir: string): Promise<ValidationRe
     throw new Error(`Entrypoint "${manifest.main}" does not exist.`);
   }
 
-  if (manifest.engine !== "js") {
-    throw new Error(`Unsupported engine "${manifest.engine}". Only "js" is available in v1.`);
-  }
+  assertSupportedEngine(manifest.engine);
 
   return {
     manifest,
@@ -65,31 +82,36 @@ export async function validateManifest(projectDir: string): Promise<ValidationRe
 export async function buildProject(projectDir: string): Promise<{ buildDir: string; manifest: LapisManifest }> {
   const { manifest, entrypoint } = await validateManifest(projectDir);
   const buildDir = resolve(projectDir, ".lapis/build");
-  const cleanupLocalSdkLink = await ensureLocalSdkLink(projectDir);
-  const preparedEntrypoint = await prepareEntrypointForBuild(entrypoint);
 
   await rm(buildDir, { recursive: true, force: true });
   await mkdir(buildDir, { recursive: true });
 
-  try {
-    const result = await Bun.build({
-      entrypoints: [preparedEntrypoint.entrypoint],
-      root: resolve(projectDir),
-      outdir: buildDir,
-      target: "node",
-      format: "cjs",
-      sourcemap: "external",
-      minify: false,
-      splitting: false,
-    });
+  if (manifest.engine === "js") {
+    const cleanupLocalSdkLink = await ensureLocalSdkLink(projectDir);
+    const preparedEntrypoint = await prepareEntrypointForBuild(entrypoint);
 
-    if (!result.success) {
-      const logs = result.logs.map((log) => log.message).join("\n");
-      throw new Error(`Build failed.\n${logs}`);
+    try {
+      const result = await Bun.build({
+        entrypoints: [preparedEntrypoint.entrypoint],
+        root: resolve(projectDir),
+        outdir: buildDir,
+        target: "node",
+        format: "cjs",
+        sourcemap: "external",
+        minify: false,
+        splitting: false,
+      });
+
+      if (!result.success) {
+        const logs = result.logs.map((log: { message: string }) => log.message).join("\n");
+        throw new Error(`Build failed.\n${logs}`);
+      }
+    } finally {
+      await preparedEntrypoint.cleanup?.();
+      await cleanupLocalSdkLink?.();
     }
-  } finally {
-    await preparedEntrypoint.cleanup?.();
-    await cleanupLocalSdkLink?.();
+  } else {
+    await stagePythonProject(projectDir, buildDir);
   }
 
   return {
@@ -104,25 +126,33 @@ export async function bundleProject(
 ): Promise<{ bundleDir: string; manifestPath: string; mainPath: string }> {
   const { buildDir, manifest } = await buildProject(projectDir);
   const bundleDir = resolve(outputDir ?? join(projectDir, "dist", manifest.id));
-  const mainPath = join(bundleDir, "main.js");
+  const bundledMain = manifest.engine === "js" ? "main.js" : normalizeBundlePath(manifest.main);
+  const mainPath = join(bundleDir, bundledMain);
   const manifestPath = join(bundleDir, "lapis-plugin.json");
-  const builtMain = await findBuiltEntrypoint(buildDir);
-
-  if (!builtMain) {
-    throw new Error("Bundled output did not contain a JavaScript entrypoint.");
-  }
 
   await rm(bundleDir, { recursive: true, force: true });
   await mkdir(bundleDir, { recursive: true });
 
-  const builtContents = await readFile(builtMain, "utf8");
-  await writeFile(mainPath, builtContents, "utf8");
+  if (manifest.engine === "js") {
+    const builtMain = await findBuiltEntrypoint(buildDir);
+
+    if (!builtMain) {
+      throw new Error("Bundled output did not contain a JavaScript entrypoint.");
+    }
+
+    const builtContents = await readFile(builtMain, "utf8");
+    await mkdir(dirname(mainPath), { recursive: true });
+    await writeFile(mainPath, builtContents, "utf8");
+  } else {
+    await copyDirectoryContents(buildDir, bundleDir);
+  }
+
   await writeFile(
     manifestPath,
     JSON.stringify(
       {
         ...manifest,
-        main: "main.js",
+        main: bundledMain,
       },
       null,
       2,
@@ -140,19 +170,27 @@ export async function bundleProject(
 export async function createProject(
   destination: string,
   displayName?: string,
+  engine: LapisEngine = "js",
 ): Promise<{ projectDir: string }> {
   const projectDir = resolve(destination);
   const id = basename(projectDir);
+  const supportedEngine = assertSupportedEngine(engine);
   const pluginName = displayName ?? id
     .split(/[-_]/g)
     .filter(Boolean)
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .map((part: string) => part[0]!.toUpperCase() + part.slice(1))
     .join(" ");
 
   await mkdir(join(projectDir, "src"), { recursive: true });
-  await writeFile(join(projectDir, "package.json"), renderPackageJson(id), "utf8");
-  await writeFile(join(projectDir, "lapis-plugin.json"), renderManifest(id, pluginName), "utf8");
-  await writeFile(join(projectDir, "src", "index.ts"), renderSource(pluginName), "utf8");
+  if (supportedEngine === "js") {
+    await writeFile(join(projectDir, "package.json"), renderPackageJson(id), "utf8");
+  }
+  await writeFile(join(projectDir, "lapis-plugin.json"), renderManifest(id, pluginName, supportedEngine), "utf8");
+  await writeFile(
+    join(projectDir, "src", supportedEngine === "js" ? "index.ts" : "main.py"),
+    renderSource(pluginName, supportedEngine),
+    "utf8",
+  );
   await writeFile(join(projectDir, ".gitignore"), GITIGNORE, "utf8");
 
   return { projectDir };
@@ -210,7 +248,7 @@ async function prepareEntrypointForBuild(
   const rewrittenImportPath = normalizeImportPath(relative(dirname(entrypoint), localSdkEntry));
   const rewrittenSource = source.replace(
     /(["'])@lapis-lazuli\/sdk\1/g,
-    (match, quote: string) => `${quote}${rewrittenImportPath}${quote}`,
+    (_match: string, quote: string) => `${quote}${rewrittenImportPath}${quote}`,
   );
   const rewrittenEntrypoint = join(dirname(entrypoint), `.lapis-${basename(entrypoint)}`);
 
@@ -249,4 +287,66 @@ async function findBuiltEntrypoint(buildDir: string): Promise<string | null> {
   }
 
   return null;
+}
+
+function assertSupportedEngine(engine: string): LapisEngine {
+  if (!SUPPORTED_ENGINES.has(engine as LapisEngine)) {
+    throw new Error(
+      `Unsupported engine "${engine}". Supported engines: ${Array.from(SUPPORTED_ENGINES).map((value) => `"${value}"`).join(", ")}.`,
+    );
+  }
+
+  return engine as LapisEngine;
+}
+
+function normalizeBundlePath(path: string): string {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+async function stagePythonProject(projectDir: string, buildDir: string): Promise<void> {
+  await copyDirectoryContents(resolve(projectDir), buildDir, shouldIncludePythonBundlePath);
+}
+
+function shouldIncludePythonBundlePath(relativePath: string, entry: Dirent): boolean {
+  void relativePath;
+
+  if (entry.isDirectory()) {
+    return !PYTHON_BUNDLE_IGNORED_DIRECTORIES.has(entry.name);
+  }
+
+  return !PYTHON_BUNDLE_IGNORED_FILES.has(entry.name);
+}
+
+async function copyDirectoryContents(
+  sourceDir: string,
+  targetDir: string,
+  shouldInclude: (relativePath: string, entry: Dirent) => boolean = () => true,
+): Promise<void> {
+  async function visit(currentSourceDir: string): Promise<void> {
+    const entries = await readdir(currentSourceDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const sourcePath = join(currentSourceDir, entry.name);
+      const relativePath = normalizeBundlePath(relative(sourceDir, sourcePath));
+
+      if (!shouldInclude(relativePath, entry)) {
+        continue;
+      }
+
+      const targetPath = join(targetDir, relativePath);
+
+      if (entry.isDirectory()) {
+        await mkdir(targetPath, { recursive: true });
+        await visit(sourcePath);
+        continue;
+      }
+
+      if (entry.isFile()) {
+        await mkdir(dirname(targetPath), { recursive: true });
+        await copyFile(sourcePath, targetPath);
+      }
+    }
+  }
+
+  await visit(sourceDir);
 }

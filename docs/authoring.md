@@ -2,7 +2,7 @@
 
 This guide covers the current repo-based workflow for:
 
-- developing a new plugin in TypeScript
+- developing a new plugin in TypeScript or Python
 - bundling it into a deployable folder
 - installing the Lapis Lazuli runtime plugin into a real Paper server
 - installing the bundled script plugin into that server
@@ -21,30 +21,37 @@ This gives you:
 - the local TypeScript SDK and CLI
 - the runtime plugin jar at `runtime-bukkit/build/libs/runtime-bukkit.jar`
 
-## 2. Create A New TypeScript Plugin
+## 2. Create A New Plugin
 
 Use the CLI from this repository:
 
 ```sh
 bun packages/cli/src/index.ts create /absolute/path/to/my-plugin "My Plugin"
+# or
+bun packages/cli/src/index.ts create /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
-That creates:
+For a TypeScript project, that creates:
 
 - `/absolute/path/to/my-plugin/lapis-plugin.json`
 - `/absolute/path/to/my-plugin/src/index.ts`
 - `/absolute/path/to/my-plugin/package.json`
 
+For a Python project, that creates:
+
+- `/absolute/path/to/my-python-plugin/lapis-plugin.json`
+- `/absolute/path/to/my-python-plugin/src/main.py`
+
 ## 3. Develop The Plugin
 
 Edit:
 
-- `/absolute/path/to/my-plugin/src/index.ts`
-- `/absolute/path/to/my-plugin/lapis-plugin.json`
+- the generated entrypoint file
+- `lapis-plugin.json`
 
-The entrypoint should export `definePlugin(...)` from `@lapis-lazuli/sdk`.
+TypeScript entrypoints should export `definePlugin(...)` from `@lapis-lazuli/sdk`.
 
-Example:
+TypeScript example:
 
 ```ts
 import { definePlugin } from "@lapis-lazuli/sdk";
@@ -55,6 +62,18 @@ export default definePlugin({
     context.logger.info("My Plugin enabled.");
   },
 });
+```
+
+Python entrypoints can expose `name` plus `on_enable` and `on_disable` functions.
+
+Python example:
+
+```py
+name = "My Python Plugin"
+
+
+def on_enable(context):
+    context.logger.info("My Python Plugin enabled.")
 ```
 
 ## 4. Validate And Bundle The Plugin
@@ -69,9 +88,12 @@ bun packages/cli/src/index.ts bundle /absolute/path/to/my-plugin
 That produces:
 
 - `/absolute/path/to/my-plugin/dist/<plugin-id>/lapis-plugin.json`
-- `/absolute/path/to/my-plugin/dist/<plugin-id>/main.js`
+- `/absolute/path/to/my-plugin/dist/<plugin-id>/...`
 
 This folder is the deployable script-plugin bundle.
+
+TypeScript and JavaScript projects are bundled to `main.js`.
+Python projects keep their source layout, so the bundle typically contains `src/main.py` and any bundle-local modules alongside it.
 
 ## 5. Install The Runtime Plugin Into Paper
 
@@ -95,7 +117,7 @@ Then start the server once. This allows Paper to load the runtime plugin and cre
 
 Stop the server after that first boot.
 
-## 6. Install The Bundled TypeScript Plugin
+## 6. Install The Bundled Plugin
 
 Copy the bundled plugin directory:
 
@@ -109,7 +131,7 @@ After copying, the server should contain:
 
 - `<server>/plugins/runtime-bukkit.jar`
 - `<server>/plugins/LapisLazuli/bundles/<plugin-id>/lapis-plugin.json`
-- `<server>/plugins/LapisLazuli/bundles/<plugin-id>/main.js`
+- the bundled entrypoint named by `lapis-plugin.json`
 
 ## 7. Start The Server
 
@@ -117,7 +139,7 @@ Start Paper again. On startup, the runtime plugin will:
 
 - scan `plugins/LapisLazuli/bundles/`
 - parse each `lapis-plugin.json`
-- load each `main.js`
+- load each configured bundle entrypoint
 - call the plugin `onEnable` hook
 
 If the bundle loads successfully, you should see the script plugin’s log output in the server console.
@@ -126,7 +148,7 @@ If the bundle loads successfully, you should see the script plugin’s log outpu
 
 To update a script plugin:
 
-1. Edit the TypeScript source.
+1. Edit the source files.
 2. Run `bundle` again.
 3. Replace the bundle folder under `plugins/LapisLazuli/bundles/<plugin-id>/`.
 4. Wait for Lapis Lazuli to detect the bundle change and hot reload it.
@@ -142,6 +164,8 @@ hotReload:
   enabled: true
   pollIntervalTicks: 20
 ```
+
+Python bundles currently support bundle-local source files and modules. Third-party Python packages are not bundled automatically yet.
 
 ## 9. Real-Server Validation
 
