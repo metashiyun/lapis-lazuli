@@ -247,11 +247,13 @@ async function uploadAssets(config, uploadSession, assetsByHash) {
       uploadSession.jwt,
     );
 
-    if (typeof result.jwt !== "string") {
-      throw new Error("Cloudflare asset upload completed without returning a completion JWT.");
+    if (typeof result.jwt === "string") {
+      completionJwt = result.jwt;
     }
+  }
 
-    completionJwt = result.jwt;
+  if (typeof completionJwt !== "string") {
+    throw new Error("Cloudflare asset upload completed without returning a completion JWT.");
   }
 
   return completionJwt;
