@@ -94,7 +94,19 @@ into:
 
 7. Start the server again. Lapis Lazuli will discover the bundle and load it on startup.
 
-Hot reload is not part of v1. The supported install/update flow is build bundle, copy bundle folder, restart the server.
+Bundle hot reload is now enabled by default on Paper. When files under `plugins/LapisLazuli/bundles/<plugin-id>/` change, the runtime will unload the current script plugins and reload the bundle set automatically without restarting the server.
+
+The runtime-owned `config.yml` and `data/` paths inside each bundle are ignored by hot reload so plugin saves do not trigger reload loops.
+
+You can tune this behavior in `plugins/LapisLazuli/config.yml`:
+
+```yaml
+hotReload:
+  enabled: true
+  pollIntervalTicks: 20
+```
+
+The supported update flow is now build bundle, replace the bundle folder, and wait for the runtime to reload it.
 
 For a fuller walkthrough, see [docs/authoring.md](docs/authoring.md).
 
@@ -109,7 +121,7 @@ The project now uses three verification layers:
   - bundles the example script plugin
   - boots a real Paper server
   - installs the runtime plugin and bundle
-  - verifies plugin enable logging, server load event wiring, command execution, and clean shutdown
+  - verifies plugin enable logging, server load event wiring, command execution, hot reload, and clean shutdown
 
 To run the real-server smoke test you must provide a Paper server jar:
 

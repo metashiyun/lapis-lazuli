@@ -129,9 +129,19 @@ To update a script plugin:
 1. Edit the TypeScript source.
 2. Run `bundle` again.
 3. Replace the bundle folder under `plugins/LapisLazuli/bundles/<plugin-id>/`.
-4. Restart the server.
+4. Wait for Lapis Lazuli to detect the bundle change and hot reload it.
 
-V1 does not support hot reload as an official workflow.
+By default the Paper runtime polls the `bundles/` directory every 20 ticks and reloads script bundles automatically when tracked bundle files change.
+
+The runtime ignores bundle-local `config.yml` and `data/` paths while watching for changes, so plugin state saves do not trigger reload loops.
+
+You can configure or disable polling in `plugins/LapisLazuli/config.yml`:
+
+```yaml
+hotReload:
+  enabled: true
+  pollIntervalTicks: 20
+```
 
 ## 9. Real-Server Validation
 
@@ -141,4 +151,4 @@ To verify the full install flow on a real Paper server jar:
 PAPER_SERVER_JAR=/absolute/path/to/paper.jar bun run test:paper-smoke
 ```
 
-That smoke test builds the runtime plugin, bundles the example script plugin, boots a real Paper server, installs both artifacts, executes the script command from the server console, and verifies the server shuts down cleanly.
+That smoke test builds the runtime plugin, bundles the example script plugin, boots a real Paper server, installs both artifacts, verifies the initial command flow, rewrites the deployed bundle to trigger hot reload, verifies the updated command output, and then shuts the server down cleanly.

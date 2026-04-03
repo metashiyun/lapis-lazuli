@@ -113,6 +113,12 @@ wait_for_log "Loaded 1 bundle(s), failed 0." "$SERVER_TIMEOUT"
 printf 'hello\n' >&3
 wait_for_log "Hello from TypeScript." 30
 
+perl -0pi -e 's/Hello from TypeScript\./Hello from hot reload./g' "$SERVER_DIR/plugins/LapisLazuli/bundles/hello-ts/main.js"
+wait_for_log "Hot reloaded bundles after detecting changes. Loaded 1 bundle(s), failed 0." 30
+
+printf 'hello\n' >&3
+wait_for_log "Hello from hot reload." 30
+
 printf 'stop\n' >&3
 wait "$SERVER_PID"
 

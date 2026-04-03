@@ -41,10 +41,20 @@ class BundleManager(
         return BundleLoadReport(loadedBundles.toList(), failedBundles.toList())
     }
 
+    @Throws(Exception::class)
+    fun reloadAll(bundlesRoot: Path): BundleLoadReport {
+        closeRunningBundles()
+        return loadAll(bundlesRoot)
+    }
+
     val loadedBundleIds: List<String>
         get() = runningBundles.keys.toList()
 
     override fun close() {
+        closeRunningBundles()
+    }
+
+    private fun closeRunningBundles() {
         runningBundles.entries.toList().asReversed().forEach { (bundleId, runningBundle) ->
             safeClose(runningBundle.plugin, "plugin $bundleId")
             safeClose(runningBundle.hostServices, "host services for $bundleId")
@@ -62,4 +72,3 @@ class BundleManager(
         val plugin: LoadedPlugin,
     )
 }
-

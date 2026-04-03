@@ -42,10 +42,43 @@ class BundleManagerTest {
         manager.close()
     }
 
-    private fun createBundle(root: Path, id: String) {
+    @Test
+    fun reloadAllClosesRunningBundlesBeforeLoadingUpdatedOnes() {
+        val bundlesRoot = tempDir.resolve("bundles")
+        createBundle(bundlesRoot, "working", "version=1")
+
+        val lifecycle = mutableListOf<String>()
+        val manager = BundleManager(
+            bundleLoader = ScriptBundleLoader(BundleManifestParser()),
+            languageRuntimeRegistry = LanguageRuntimeRegistry(listOf(TrackingRuntime(lifecycle))),
+            hostServicesFactory = dev.lapislazuli.runtime.core.host.HostServicesFactory { FakeHostServices() },
+            logger = TestLogger(),
+        )
+
+        val initialReport = manager.loadAll(bundlesRoot)
+        Files.writeString(bundlesRoot.resolve("working").resolve("main.js"), "version=2")
+        val reloadReport = manager.reloadAll(bundlesRoot)
+
+        assertEquals(listOf("working"), initialReport.loadedBundles)
+        assertEquals(listOf("working"), reloadReport.loadedBundles)
+        assertEquals(listOf("enable:version=1", "close:version=1", "enable:version=2"), lifecycle)
+
+        manager.close()
+
+        assertEquals(
+            listOf("enable:version=1", "close:version=1", "enable:version=2", "close:version=2"),
+            lifecycle,
+        )
+    }
+
+    private fun createBundle(
+        root: Path,
+        id: String,
+        mainContents: String = "module.exports = { default: { name: '$id' } };",
+    ) {
         val bundleDir = root.resolve(id)
         Files.createDirectories(bundleDir)
-        Files.writeString(bundleDir.resolve("main.js"), "module.exports = { default: { name: '$id' } };")
+        Files.writeString(bundleDir.resolve("main.js"), mainContents)
         Files.writeString(
             bundleDir.resolve("lapis-plugin.json"),
             """
@@ -79,6 +112,28 @@ class BundleManagerTest {
                 }
 
                 override fun close() {
+                }
+            }
+        }
+    }
+
+    private class TrackingRuntime(
+        private val lifecycle: MutableList<String>,
+    ) : LanguageRuntime {
+        override val engine: String = "js"
+
+        override fun load(bundle: ScriptBundle, hostServices: HostServices): LoadedPlugin {
+            val version = Files.readString(bundle.mainFile)
+
+            return object : LoadedPlugin {
+                override val manifest: BundleManifest = bundle.manifest
+
+                override fun enable() {
+                    lifecycle += "enable:$version"
+                }
+
+                override fun close() {
+                    lifecycle += "close:$version"
                 }
             }
         }
@@ -156,4 +211,3 @@ class BundleManagerTest {
         }
     }
 }
-
