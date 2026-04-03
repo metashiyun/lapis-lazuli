@@ -1,9 +1,9 @@
 # CLI Reference
 
-The CLI lives in `packages/cli` and is currently invoked from source:
+The CLI lives in `tooling/cli` and is currently invoked from source:
 
 ```sh
-bun packages/cli/src/index.ts <command> ...
+bun tooling/cli/src/index.ts <command> ...
 ```
 
 ## Commands
@@ -11,7 +11,7 @@ bun packages/cli/src/index.ts <command> ...
 ### `create`
 
 ```sh
-bun packages/cli/src/index.ts create <directory> [display-name] [engine]
+bun tooling/cli/src/index.ts create <directory> [display-name] [engine]
 ```
 
 Supported engines:
@@ -28,7 +28,7 @@ The generated Python starter includes `pyproject.toml` metadata and imports the
 ### `validate`
 
 ```sh
-bun packages/cli/src/index.ts validate <directory>
+bun tooling/cli/src/index.ts validate <directory>
 ```
 
 Validation checks:
@@ -41,7 +41,7 @@ Validation checks:
 ### `build`
 
 ```sh
-bun packages/cli/src/index.ts build <directory>
+bun tooling/cli/src/index.ts build <directory>
 ```
 
 Behavior:
@@ -54,7 +54,7 @@ Behavior:
 ### `bundle`
 
 ```sh
-bun packages/cli/src/index.ts bundle <directory> [output-directory]
+bun tooling/cli/src/index.ts bundle <directory> [output-directory]
 ```
 
 Behavior:

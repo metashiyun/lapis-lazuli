@@ -3,10 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bundle": "bun ../../packages/cli/src/index.ts bundle ."
+    "bundle": "bun ../../tooling/cli/src/index.ts bundle ."
   },
   "dependencies": {
     "@lapis-lazuli/sdk": "workspace:*"
   }
 }
-

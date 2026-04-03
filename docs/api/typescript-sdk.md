@@ -93,4 +93,4 @@ The SDK still supports advanced backend access through:
 
 Treat those as secondary APIs, not the primary authoring path.
 
-For the exact exported types, read [packages/sdk/src/index.ts](../../packages/sdk/src/index.ts).
+For the exact exported types, read [sdks/typescript/src/index.ts](../../sdks/typescript/src/index.ts).

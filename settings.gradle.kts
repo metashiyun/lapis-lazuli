@@ -1,5 +1,4 @@
 rootProject.name = "lapis-lazuli"
 
-include("runtime-core")
-include("runtime-bukkit")
-
+include("runtimes:jvm:core")
+include("runtimes:jvm:bukkit")

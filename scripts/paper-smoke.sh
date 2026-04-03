@@ -8,7 +8,7 @@ SERVER_DIR="${PAPER_SMOKE_DIR:-$ROOT_DIR/.paper-smoke}"
 JAVA_BIN="${PAPER_JAVA_BIN:-java}"
 LOG_FILE="$SERVER_DIR/server.log"
 COMMAND_FIFO="$SERVER_DIR/console.fifo"
-RUNTIME_JAR="$ROOT_DIR/runtime-bukkit/build/libs/runtime-bukkit.jar"
+RUNTIME_JAR="$ROOT_DIR/runtimes/jvm/bukkit/build/libs/lapis-runtime-bukkit.jar"
 BUNDLE_DIR="$ROOT_DIR/examples/hello-ts/dist/hello-ts"
 SERVER_TIMEOUT="${PAPER_SMOKE_TIMEOUT_SECONDS:-120}"
 
@@ -34,10 +34,10 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Building runtime plugin jar..."
-(cd "$ROOT_DIR" && ./gradlew :runtime-bukkit:shadowJar >/dev/null)
+(cd "$ROOT_DIR" && ./gradlew :runtimes:jvm:bukkit:shadowJar >/dev/null)
 
 echo "Bundling example plugin..."
-(cd "$ROOT_DIR" && bun packages/cli/src/index.ts bundle examples/hello-ts >/dev/null)
+(cd "$ROOT_DIR" && bun tooling/cli/src/index.ts bundle examples/hello-ts >/dev/null)
 
 if [[ ! -f "$RUNTIME_JAR" ]]; then
   echo "Runtime jar not found at $RUNTIME_JAR"
@@ -53,7 +53,7 @@ rm -rf "$SERVER_DIR"
 mkdir -p "$SERVER_DIR/plugins" "$SERVER_DIR/plugins/LapisLazuli/bundles"
 
 cp "$SERVER_JAR" "$SERVER_DIR/paper.jar"
-cp "$RUNTIME_JAR" "$SERVER_DIR/plugins/runtime-bukkit.jar"
+cp "$RUNTIME_JAR" "$SERVER_DIR/plugins/lapis-runtime-bukkit.jar"
 cp -R "$BUNDLE_DIR" "$SERVER_DIR/plugins/LapisLazuli/bundles/"
 
 cat >"$SERVER_DIR/eula.txt" <<'EOF'

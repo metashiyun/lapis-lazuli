@@ -17,7 +17,7 @@ Primary focus:
 ## 2. JVM Runtime Tests
 
 ```sh
-./gradlew :runtime-core:test
+./gradlew :runtimes:jvm:core:test
 ```
 
 Primary focus:
@@ -30,7 +30,7 @@ Primary focus:
 ## 3. Backend Compile Check
 
 ```sh
-./gradlew :runtime-bukkit:compileKotlin
+./gradlew :runtimes:jvm:bukkit:compileKotlin
 ```
 
 Primary focus:
@@ -58,7 +58,7 @@ Every change:
 
 ```sh
 bun test
-./gradlew :runtime-core:test :runtime-bukkit:compileKotlin
+./gradlew :runtimes:jvm:core:test :runtimes:jvm:bukkit:compileKotlin
 ```
 
 Runtime or backend changes:

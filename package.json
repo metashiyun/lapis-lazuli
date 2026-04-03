@@ -3,18 +3,20 @@
   "private": true,
   "packageManager": "bun@1.3.9",
   "workspaces": [
-    "packages/*",
+    "apps/*",
+    "tooling/*",
+    "sdks/*",
     "examples/*"
   ],
   "scripts": {
     "test": "bun test",
-    "validate:example": "bun packages/cli/src/index.ts validate examples/hello-ts",
-    "bundle:example": "bun packages/cli/src/index.ts bundle examples/hello-ts",
+    "validate:example": "bun tooling/cli/src/index.ts validate examples/hello-ts",
+    "bundle:example": "bun tooling/cli/src/index.ts bundle examples/hello-ts",
     "test:paper-smoke": "bash scripts/paper-smoke.sh",
-    "dev:site": "bun run --filter @lapis-lazuli/site dev",
-    "build:site": "bun run --filter @lapis-lazuli/site build",
-    "preview:site": "bun run --filter @lapis-lazuli/site preview",
-    "dev:site:cf": "bun run --filter @lapis-lazuli/site dev:cf",
-    "deploy:site": "bun run --filter @lapis-lazuli/site deploy"
+    "dev:docs": "bun run --filter @lapis-lazuli/docs dev",
+    "build:docs": "bun run --filter @lapis-lazuli/docs build",
+    "preview:docs": "bun run --filter @lapis-lazuli/docs preview",
+    "dev:docs:cf": "bun run --filter @lapis-lazuli/docs dev:cf",
+    "deploy:docs": "bun run --filter @lapis-lazuli/docs deploy"
   }
 }
