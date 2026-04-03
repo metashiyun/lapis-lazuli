@@ -7,6 +7,9 @@ group = "org.shiyun.lapis"
 version = "0.2.1"
 
 subprojects {
+    group = rootProject.group
+    version = rootProject.version
+
     apply(plugin = "java-library")
 
     repositories {

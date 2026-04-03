@@ -23,6 +23,7 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier.set("")
+    archiveVersion.set("")
 }
 
 tasks.build {
