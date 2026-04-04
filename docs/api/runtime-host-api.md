@@ -1,6 +1,7 @@
 # Runtime Host API
 
-This document describes the runtime context injected into JavaScript and Python bundles.
+This document describes the runtime context injected into embedded JavaScript,
+external Node, and Python bundles.
 
 The public model is service-oriented:
 
@@ -154,7 +155,7 @@ Responses expose:
 - `body`
 - `text()`
 
-In JavaScript, `http.fetch(...)` returns a promise.
+In JavaScript and Node, `http.fetch(...)` returns a promise.
 
 ## `unsafe`
 
@@ -170,3 +171,15 @@ Available paths:
 - `unsafe.backend.dispatchCommand(...)`
 
 Use this only when the Lapis SDK does not yet cover the required capability.
+
+## Node Runtime Differences
+
+The `node` engine runs in a separate process, so a few `unsafe` APIs are intentionally
+not exposed there:
+
+- `unsafe.events.onJava(...)`
+- `unsafe.java.type(...)`
+- raw backend handles such as `unsafe.backend.server`, `unsafe.backend.plugin`,
+  `unsafe.backend.console`, and `unsafe.handle`
+
+`unsafe.backend.dispatchCommand(...)` remains available.

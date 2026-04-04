@@ -8,7 +8,7 @@ servers.
 It does not claim full Bukkit, Spigot, or Paper API parity. Instead, it provides:
 
 - a TypeScript-first public SDK
-- JavaScript and Python runtime support
+- JavaScript, Node, and Python runtime support
 - a Bukkit/Paper backend implementation of the SDK
 - an explicit `unsafe` escape hatch for raw backend access
 
@@ -17,13 +17,13 @@ It does not claim full Bukkit, Spigot, or Paper API parity. Instead, it provides
 | Area | Status | Notes |
 | --- | --- | --- |
 | TypeScript authoring | Supported | Primary API design target |
-| JavaScript authoring | Supported | Same runtime context as TS |
+| JavaScript authoring | Supported | Same SDK surface through embedded `js` or external `node` |
 | Python authoring | Supported | Public `lapis_lazuli` SDK with Pythonic wrappers over the shared runtime |
 | `lapis-lazuli` | Active redesign | Service-oriented Lapis API |
 | Bukkit-common SDK core | In progress | Runtime is shaped around capabilities common to Bukkit-family servers |
 | Paper target | Supported | Compile target and smoke-tested path |
 | Bukkit / Spigot validation | Unverified | Runtime contract is moving toward Bukkit-common, but release validation is still Paper-first |
-| Raw Java/backend access | Supported | Exposed only through `context.unsafe` |
+| Raw Java/backend access | Partially supported | Exposed through `context.unsafe` in embedded `js`; intentionally reduced in `node` |
 
 ## What The SDK Covers Today
 
@@ -60,3 +60,4 @@ This is a Lapis API, not a Java facade.
 - console command dispatch
 
 That path is intentionally explicit so normal plugin code stays inside the Lapis SDK.
+For the `node` engine, only console command dispatch remains available.

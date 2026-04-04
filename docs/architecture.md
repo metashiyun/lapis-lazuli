@@ -2,7 +2,7 @@
 
 Lapis Lazuli has four main layers:
 
-- `runtimes/jvm/core`: bundle loading, manifest parsing, lifecycle management, and JS/Python execution
+- `runtimes/jvm/core`: bundle loading, manifest parsing, lifecycle management, and JS/Node/Python execution
 - `runtimes/jvm/bukkit`: the Bukkit-family backend implementation of the Lapis SDK
 - `sdks/typescript`: the public TypeScript SDK
 - `tooling/cli`: authoring and bundling tools
@@ -16,7 +16,7 @@ Lapis Lazuli has four main layers:
 - discovering bundles
 - parsing `lapis-plugin.json`
 - selecting the language runtime by `manifest.engine`
-- evaluating JS and Python bundles
+- evaluating embedded JS, external Node, and Python bundles
 - passing the Lapis runtime context into lifecycle hooks
 - closing loaded bundles on shutdown or hot reload
 

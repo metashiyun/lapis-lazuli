@@ -33,6 +33,7 @@ import java.util.UUID
 
 class FakeHostServices(
     private val dataRoot: Path,
+    private val engineName: String = "js",
 ) : HostServices {
     val configValues = linkedMapOf<String, Any?>()
     val storageValues = linkedMapOf<String, Any?>()
@@ -64,7 +65,7 @@ class FakeHostServices(
             id = "hello",
             name = "Hello",
             version = "1.0.0",
-            engine = "js",
+            engine = engineName,
             apiVersion = "1.0",
             backend = "fake-bukkit",
             runtime = "fake-runtime",

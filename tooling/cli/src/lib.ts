@@ -5,7 +5,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderManifest, renderPackageJson, renderPythonPyproject, renderSource, GITIGNORE } from "./templates.js";
 
-export type LapisEngine = "js" | "python";
+export type LapisEngine = "js" | "node" | "python";
 
 export interface LapisManifest {
   id: string;
@@ -23,7 +23,7 @@ export interface ValidationResult {
 
 const LOCAL_SDK_DIR = fileURLToPath(new URL("../../../sdks/typescript", import.meta.url));
 const LOCAL_PYTHON_SDK_DIR = fileURLToPath(new URL("../../../sdks/python/src/lapis_lazuli", import.meta.url));
-const SUPPORTED_ENGINES = new Set<LapisEngine>(["js", "python"]);
+const SUPPORTED_ENGINES = new Set<LapisEngine>(["js", "node", "python"]);
 const PYTHON_BUNDLE_IGNORED_DIRECTORIES = new Set([
   ".git",
   ".lapis",
@@ -87,9 +87,9 @@ export async function buildProject(projectDir: string): Promise<{ buildDir: stri
   await rm(buildDir, { recursive: true, force: true });
   await mkdir(buildDir, { recursive: true });
 
-  if (manifest.engine === "js") {
+  if (manifest.engine === "js" || manifest.engine === "node") {
     const cleanupLocalSdkLink = await ensureLocalSdkLink(projectDir);
-    const preparedEntrypoint = await prepareEntrypointForBuild(entrypoint);
+    const preparedEntrypoint = await prepareEntrypointForBuild(projectDir, entrypoint);
 
     try {
       const result = await Bun.build({
@@ -127,14 +127,14 @@ export async function bundleProject(
 ): Promise<{ bundleDir: string; manifestPath: string; mainPath: string }> {
   const { buildDir, manifest } = await buildProject(projectDir);
   const bundleDir = resolve(outputDir ?? join(projectDir, "dist", manifest.id));
-  const bundledMain = manifest.engine === "js" ? "main.js" : normalizeBundlePath(manifest.main);
+  const bundledMain = manifest.engine === "python" ? normalizeBundlePath(manifest.main) : "main.js";
   const mainPath = join(bundleDir, bundledMain);
   const manifestPath = join(bundleDir, "lapis-plugin.json");
 
   await rm(bundleDir, { recursive: true, force: true });
   await mkdir(bundleDir, { recursive: true });
 
-  if (manifest.engine === "js") {
+  if (manifest.engine === "js" || manifest.engine === "node") {
     const builtMain = await findBuiltEntrypoint(buildDir);
 
     if (!builtMain) {
@@ -183,14 +183,14 @@ export async function createProject(
     .join(" ");
 
   await mkdir(join(projectDir, "src"), { recursive: true });
-  if (supportedEngine === "js") {
+  if (supportedEngine !== "python") {
     await writeFile(join(projectDir, "package.json"), renderPackageJson(id), "utf8");
   } else {
     await writeFile(join(projectDir, "pyproject.toml"), renderPythonPyproject(id), "utf8");
   }
   await writeFile(join(projectDir, "lapis-plugin.json"), renderManifest(id, pluginName, supportedEngine), "utf8");
   await writeFile(
-    join(projectDir, "src", supportedEngine === "js" ? "index.ts" : "main.py"),
+    join(projectDir, "src", supportedEngine === "python" ? "main.py" : "index.ts"),
     renderSource(pluginName, supportedEngine),
     "utf8",
   );
@@ -238,10 +238,13 @@ async function ensureLocalSdkLink(projectDir: string): Promise<(() => Promise<vo
 }
 
 async function prepareEntrypointForBuild(
+  projectDir: string,
   entrypoint: string,
 ): Promise<{ entrypoint: string; cleanup?: () => Promise<void> }> {
   const source = await readFile(entrypoint, "utf8");
-  const localSdkEntry = join(LOCAL_SDK_DIR, "src", "index.ts");
+  const linkedSdkEntry = join(resolve(projectDir), "node_modules", "lapis-lazuli", "src", "index.ts");
+  const linkedSdkExists = await stat(linkedSdkEntry).catch(() => null);
+  const localSdkEntry = linkedSdkExists?.isFile() ? linkedSdkEntry : join(LOCAL_SDK_DIR, "src", "index.ts");
   const localSdkExists = await stat(localSdkEntry).catch(() => null);
 
   if (!localSdkExists?.isFile() || !source.includes("lapis-lazuli")) {

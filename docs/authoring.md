@@ -17,12 +17,19 @@ Published packages:
 
 ```sh
 npx create-lapis-lazuli /absolute/path/to/my-plugin
+npx create-lapis-lazuli /absolute/path/to/my-node-plugin "My Node Plugin" node
 npx create-lapis-lazuli /absolute/path/to/my-python-plugin "My Python Plugin" python
 ```
 
 The generated TypeScript starter declares `lapis-lazuli` as a normal npm
 dependency and imports from `lapis-lazuli`. The generated Python starter declares
 `lapis-lazuli` in `pyproject.toml` and imports `lapis_lazuli`.
+
+Engine choices:
+
+- `js`: bundled TS/JS executed by the embedded GraalJS runtime
+- `node`: bundled TS/JS executed by an external Node process
+- `python`: Python bundle executed by the embedded Python runtime
 
 If you are adding Lapis to an existing plugin project instead of scaffolding a new
 one, install the SDK from the public registry for your language:
@@ -75,6 +82,14 @@ npx create-lapis-lazuli bundle /absolute/path/to/my-plugin
 ```
 
 The deployable bundle is written under `dist/<plugin-id>/`.
+
+For `engine: "node"` bundles, keep a `node` executable available on the server host
+or set `plugins/LapisLazuli/config.yml`:
+
+```yaml
+node:
+  command: /absolute/path/to/node
+```
 
 ## 4. Install The Runtime
 
@@ -131,6 +146,8 @@ Use the Lapis services for normal plugin work:
 - `config`
 
 Use `context.unsafe` only when the required backend capability is not yet modeled.
+In the `node` engine, raw Java access is intentionally unavailable, so prefer the
+documented Lapis services.
 
 ## 8. Validate On A Real Server
 
