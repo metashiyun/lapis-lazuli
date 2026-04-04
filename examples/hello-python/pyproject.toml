@@ -4,5 +4,5 @@ version = "0.1.0"
 description = "Example Lapis Lazuli Python plugin"
 requires-python = ">=3.11"
 dependencies = [
-  "lapis-lazuli>=0.1.0",
+  "lapis-lazuli>=0.3.0",
 ]

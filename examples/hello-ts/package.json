@@ -7,6 +7,6 @@
     "bundle": "npx create-lapis-lazuli bundle ."
   },
   "dependencies": {
-    "lapis-lazuli": "^0.1.0"
+    "lapis-lazuli": "^0.3.0"
   }
 }
