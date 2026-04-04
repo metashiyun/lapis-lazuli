@@ -98,4 +98,28 @@ describe("CLI library", () => {
       await cleanupTempProject(projectDir);
     }
   });
+
+  it("creates and bundles a Node project", async () => {
+    const projectDir = await createTempProject();
+    const nodeDir = join(projectDir, "hello-node");
+
+    try {
+      await createProject(nodeDir, "Hello Node", "node");
+
+      const validation = await validateManifest(nodeDir);
+      const result = await bundleProject(nodeDir, join(projectDir, "node-output"));
+
+      expect(validation.manifest.engine).toBe("node");
+      expect(await Bun.file(result.mainPath).exists()).toBe(true);
+      expect(await Bun.file(result.manifestPath).json()).toEqual(
+        expect.objectContaining({
+          id: "hello-node",
+          engine: "node",
+          main: "main.js",
+        }),
+      );
+    } finally {
+      await cleanupTempProject(projectDir);
+    }
+  });
 });

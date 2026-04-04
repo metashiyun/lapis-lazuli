@@ -4,6 +4,7 @@ import org.shiyun.lapis.runtimes.jvm.core.bundle.BundleManifestParser
 import org.shiyun.lapis.runtimes.jvm.core.bundle.ScriptBundleLoader
 import org.shiyun.lapis.runtimes.jvm.core.host.RuntimeLogger
 import org.shiyun.lapis.runtimes.jvm.core.js.JsLanguageRuntime
+import org.shiyun.lapis.runtimes.jvm.core.node.NodeLanguageRuntime
 import org.shiyun.lapis.runtimes.jvm.core.python.PythonLanguageRuntime
 import org.shiyun.lapis.runtimes.jvm.core.runtime.BundleManager
 import org.shiyun.lapis.runtimes.jvm.core.runtime.LanguageRuntimeRegistry
@@ -45,7 +46,17 @@ class LapisLazuliPlugin : JavaPlugin() {
 
             bundleManager = BundleManager(
                 ScriptBundleLoader(BundleManifestParser()),
-                LanguageRuntimeRegistry(listOf(JsLanguageRuntime(), PythonLanguageRuntime())),
+                LanguageRuntimeRegistry(
+                    listOf(
+                        JsLanguageRuntime(),
+                        NodeLanguageRuntime(
+                            config.getString("node.command")
+                                ?.takeIf(String::isNotBlank)
+                                ?: "node",
+                        ),
+                        PythonLanguageRuntime(),
+                    ),
+                ),
                 { bundle -> BukkitHostServices(this, bundle) },
                 runtimeLogger,
             )

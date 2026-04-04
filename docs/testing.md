@@ -24,8 +24,10 @@ Primary focus:
 
 - bundle loading
 - lifecycle handling
-- JS and Python runtime context behavior
+- JS, Node, and Python runtime context behavior
 - example bundle integration
+
+Node-specific runtime tests require a working `node` command in the environment.
 
 ## 3. Backend Compile Check
 

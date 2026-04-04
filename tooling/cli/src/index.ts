@@ -14,7 +14,7 @@ function usage(): never {
       "  lapis bundle <directory> [output-directory]",
       "  lapis build <directory>",
       "",
-      "Supported engines: js, python",
+      "Supported engines: js, node, python",
     ].join("\n"),
   );
 }
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
         usage();
       }
 
-      const result = await createProject(firstArg, secondArg, thirdArg as "js" | "python" | undefined);
+      const result = await createProject(firstArg, secondArg, thirdArg as "js" | "node" | "python" | undefined);
       console.log(`Created ${result.projectDir}`);
       return;
     }

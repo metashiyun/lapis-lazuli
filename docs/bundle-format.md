@@ -40,7 +40,7 @@ Example:
 | `id` | Yes | Stable bundle identifier |
 | `name` | Yes | Human-readable plugin name |
 | `version` | Yes | Bundle version string |
-| `engine` | Yes | Runtime engine key. Only `"js"` is supported today |
+| `engine` | Yes | Runtime engine key. Supported values are `"js"`, `"node"`, and `"python"` |
 | `main` | Yes | Relative path to the bundle entrypoint |
 | `apiVersion` | Yes | Lapis Lazuli API version marker |
 | `dependencies` | No | Parsed by the manifest model, but not currently enforced |
@@ -72,9 +72,9 @@ trigger reload loops.
 
 The CLI bundles source projects into the runtime format by:
 
-1. compiling the declared entrypoint
-2. copying the built JS output to `main.js`
-3. rewriting the manifest `main` field to `main.js`
+1. compiling `js` and `node` entrypoints with Bun, or staging Python source files
+2. copying the built JS output to `main.js` for `js` and `node` bundles
+3. rewriting the manifest `main` field to the runtime entrypoint path
 
 That means authors can keep `main` pointed at `./src/index.ts` in source control while
 still shipping a runtime-ready bundle.

@@ -1,4 +1,4 @@
-type TemplateEngine = "js" | "python";
+type TemplateEngine = "js" | "node" | "python";
 
 export function renderPackageJson(name: string): string {
   return JSON.stringify(
@@ -40,7 +40,7 @@ export function renderManifest(id: string, displayName: string, engine: Template
       name: displayName,
       version: "0.1.0",
       engine,
-      main: engine === "js" ? "./src/index.ts" : "./src/main.py",
+      main: engine === "python" ? "./src/main.py" : "./src/index.ts",
       apiVersion: "1.0",
     },
     null,

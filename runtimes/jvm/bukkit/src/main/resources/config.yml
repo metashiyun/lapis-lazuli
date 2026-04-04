@@ -1,3 +1,6 @@
 hotReload:
   enabled: true
   pollIntervalTicks: 20
+
+node:
+  command: node

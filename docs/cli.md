@@ -19,6 +19,7 @@ npx create-lapis-lazuli <directory> [display-name] [engine]
 Supported engines:
 
 - `js`
+- `node`
 - `python`
 
 The generated TypeScript starter depends on `lapis-lazuli` and uses the current
@@ -50,7 +51,7 @@ npx create-lapis-lazuli build <directory>
 Behavior:
 
 - validates the manifest
-- bundles JS/TS entrypoints with Bun into `.lapis/build`
+- bundles `js` and `node` TS/JS entrypoints with Bun into `.lapis/build`
 - stages Python projects into `.lapis/build`
 - vendors the `lapis_lazuli` package into Python builds when needed
 
@@ -66,4 +67,4 @@ Behavior:
 - writes a deployable bundle directory
 - rewrites manifest `main` to the bundled output path
 
-JS and Python bundle output is designed to stay self-contained for deployment.
+`js`, `node`, and Python bundle output is designed to stay self-contained for deployment.

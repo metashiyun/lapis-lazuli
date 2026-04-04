@@ -111,4 +111,8 @@ The SDK still supports advanced backend access through:
 
 Treat those as secondary APIs, not the primary authoring path.
 
+When a bundle uses `engine: "node"`, only `context.unsafe.backend.dispatchCommand(...)`
+is available. Raw Java access and backend handles remain limited to the embedded
+`js` runtime.
+
 For the exact exported types, read [sdks/typescript/src/index.ts](../../sdks/typescript/src/index.ts).
